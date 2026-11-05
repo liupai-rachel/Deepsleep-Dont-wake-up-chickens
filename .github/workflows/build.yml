@@ -1,0 +1,59 @@
+name: Check and export
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - run: .codex/setup.sh
+      - name: Export web and desktop
+        run: |
+          GODOT="$HOME/.cache/sd5913-godot-4.5.1/godot"
+          mkdir -p build/web build/linux build/windows && touch build/.gdignore
+          "$GODOT" --headless --path . --export-release Web build/web/index.html
+          "$GODOT" --headless --path . --export-release Linux build/linux/game.x86_64
+          "$GODOT" --headless --path . --export-release Windows build/windows/game.exe
+      - uses: actions/upload-artifact@v7
+        with:
+          name: game-exports
+          path: build/
+          if-no-files-found: error
+  release:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_type == 'tag')
+    needs: export
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: game-exports
+          path: downloaded
+      - run: .github/scripts/package-release.sh
+      - name: Upload release package preview
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-preview
+          path: release/
+          if-no-files-found: error
+      - name: Create GitHub release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo 'Release tags must look like v1.2.3' >&2
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" release/web.zip release/linux.zip release/windows.zip --verify-tag --generate-notes
