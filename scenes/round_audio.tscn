@@ -1,0 +1,36 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="AudioStream" path="res://assets/audio/search.wav" id="1"]
+[ext_resource type="AudioStream" path="res://assets/audio/egg.wav" id="2"]
+[ext_resource type="AudioStream" path="res://assets/audio/cluck.wav" id="3"]
+[ext_resource type="AudioStream" path="res://assets/audio/farmer.wav" id="4"]
+[ext_resource type="AudioStream" path="res://assets/audio/success.wav" id="5"]
+[ext_resource type="AudioStream" path="res://assets/audio/failure.wav" id="6"]
+[ext_resource type="Script" path="res://scenes/round_audio.gd" id="7"]
+
+[node name="Audio" type="Node"]
+script = ExtResource("7")
+
+[node name="Search" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("1")
+volume_db = -8.0
+
+[node name="Egg" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("2")
+volume_db = -7.0
+
+[node name="Cluck" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("3")
+volume_db = -7.0
+
+[node name="Farmer" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("4")
+volume_db = -6.0
+
+[node name="Success" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("5")
+volume_db = -8.0
+
+[node name="Failure" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("6")
+volume_db = -8.0

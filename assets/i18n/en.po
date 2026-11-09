@@ -1,0 +1,164 @@
+msgid ""
+msgstr ""
+"Language: en\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"MIME-Version: 1.0\n"
+
+msgid "夜访鸡舍"
+msgstr "Night Coop"
+
+msgid "潜行行动"
+msgstr "STEALTH MISSION"
+
+msgid "正在准备鸡舍"
+msgstr "Preparing the coop..."
+
+msgid "地图验证失败"
+msgstr "Layout failed validation"
+
+msgid "地图验证失败，请重开"
+msgstr "Layout failed validation. Restart to try again."
+
+msgid "无法开始行动"
+msgstr "Unable to start"
+
+msgid "在时限内收集足够鸡蛋，从南侧入口撤离。\n避开母鸡视野，利用木箱和饲料争取时间。"
+msgstr "Collect enough eggs and leave through the south exit.\nHide behind crates and use feed to distract the hens."
+
+msgid "WASD / 方向键\nE\nQ\nEsc"
+msgstr "WASD / Arrow keys\nE\nQ\nEsc"
+
+msgid "移动\n按住搜寻，轻按拾取或撤离\n投放饲料\n暂停或继续"
+msgstr "Move\nHold to search. Tap to pick up or exit.\nThrow feed\nPause or resume"
+
+msgid "开始行动"
+msgstr "Start"
+
+msgid "行动暂停"
+msgstr "Paused"
+
+msgid "继续行动"
+msgstr "Resume"
+
+msgid "重新开始"
+msgstr "Restart"
+
+msgid "暂停 Esc"
+msgstr "Pause Esc"
+
+msgid "移动  WASD / 方向键"
+msgstr "Move  WASD / Arrow keys"
+
+msgid "入口 / 撤离"
+msgstr "Entry / Exit"
+
+msgid "鸡蛋 %d / %d"
+msgstr "Eggs %d / %d"
+
+msgid "剩余时间 %s"
+msgstr "Time %s"
+
+msgid "警戒 %d / 100"
+msgstr "Alert %d / 100"
+
+msgid "饲料 %d"
+msgstr "Feed %d"
+
+msgid "鸡蛋 0 / 6"
+msgstr "Eggs 0 / 6"
+
+msgid "剩余时间 2:00"
+msgstr "Time 2:00"
+
+msgid "警戒 0 / 100"
+msgstr "Alert 0 / 100"
+
+msgid "饲料 0"
+msgstr "Feed 0"
+
+msgid "靠近鸟巢搜寻鸡蛋"
+msgstr "Approach a nest to search"
+
+msgid "按 E 拾取饲料"
+msgstr "Press E to pick up feed"
+
+msgid "拾取饲料，按 Q 投放"
+msgstr "Feed collected. Press Q to throw it."
+
+msgid "已投放饲料"
+msgstr "Feed thrown"
+
+msgid "没有饲料可投放"
+msgstr "No feed to throw"
+
+msgid "前方无法投放饲料"
+msgstr "Can't throw feed there"
+
+msgid "按 E 撤离"
+msgstr "Press E to exit"
+
+msgid "撤离还差 %d 枚鸡蛋"
+msgstr "Eggs still needed to exit: %d"
+
+msgid "已搜空"
+msgstr "Empty nest"
+
+msgid "搜寻中，松开 E 取消"
+msgstr "Searching. Release E to cancel."
+
+msgid "仍可搜寻，按住 E 继续"
+msgstr "Hold E to search again"
+
+msgid "未搜寻，按住 E 搜寻"
+msgstr "Unsearched nest. Hold E to search."
+
+msgid "目标达成，返回入口撤离"
+msgstr "Goal met. Return to the exit."
+
+msgid "发现玩家"
+msgstr "Spotted"
+
+msgid "正在啄食"
+msgstr "Pecking"
+
+msgid "被母鸡看见"
+msgstr "Seen by a hen"
+
+msgid "搜寻声引发鸣叫"
+msgstr "Hen heard the search"
+
+msgid "农夫即将从北侧入场"
+msgstr "Farmer incoming from the north"
+
+msgid "农夫正在追赶"
+msgstr "Farmer is chasing you"
+
+msgid "农夫正在搜寻"
+msgstr "Farmer is searching"
+
+msgid "农夫正在撤退"
+msgstr "Farmer is leaving"
+
+msgid "撤离成功"
+msgstr "Escaped"
+
+msgid "已安全离开鸡舍。"
+msgstr "You made it out of the coop."
+
+msgid "被农夫抓住"
+msgstr "Caught by the farmer"
+
+msgid "农夫追上了你，未能撤离。"
+msgstr "The farmer caught you before you escaped."
+
+msgid "时间耗尽"
+msgstr "Time's up"
+
+msgid "倒计时归零，未能及时撤离。"
+msgstr "You ran out of time before reaching safety."
+
+msgid "鸡蛋 %d / %d    用时 %s"
+msgstr "Eggs %d / %d    Time %s"
+
+msgid "鸡蛋 6 / 6    用时 1:12"
+msgstr "Eggs 6 / 6    Time 1:12"
