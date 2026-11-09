@@ -1,172 +1,117 @@
 # 夜访鸡舍 · Night Coop
 
-[简体中文](#中文) · [English](#english) · [项目文件说明 / Project file guide (Chinese)](PROJECT_GUIDE.md) · [导出命令 / Export commands](#export-commands)
+**一款单人俯视角潜行游戏。趁母鸡转身时搜蛋，在农夫抓到你之前溜出鸡舍。**
+
+**A single-player, top-down stealth game. Search nests while the hens look away, then slip out before the farmer catches you.**
+
+[中文](#中文) · [English](#english) · [开发与验收 / Playtesting](#playtest) · [导出 / Exports](#export-commands) · [项目结构 / Project guide](PROJECT_GUIDE.md)
 
 ## 中文
 
-在夜晚潜入随机生成的鸡舍，观察母鸡巡逻，搜集至少 **6 枚鸡蛋**，并在
-**120 秒**内从南侧绿色入口撤离。墙壁和木箱能遮挡视线，饲料能暂时引开母鸡。
+### 一局怎么玩
 
-### 启动与操作
+你的目标是 **120 秒内搜集至少 6 枚鸡蛋，并从南侧绿色入口撤离**。每局的鸡舍布局和鸟巢库存由种子决定。同一个巢可能只够搜一次，也可能值得再冒一次险。
 
-用 **Godot 4.5.1 Standard** 导入 `project.godot`，按 **F5**，再点击
-**开始行动**。项目使用 GDScript 和 Compatibility 渲染器。导出需要安装
-同版本的 Standard 导出模板。游戏默认显示简体中文，在开始、暂停或结算界面
-点击 **English** 或 **中文** 可立即切换。切换不影响本局，重新开始会保留当前语言。
+1. **先看母鸡往哪走。** 视野扇形会随母鸡转向，墙壁和木箱可以挡住视线。捡到饲料后，可以把它扔到别处，暂时引开附近的母鸡。
+2. **决定要不要再搜一次。** 靠近鸟巢，按住 **E** 两秒取一枚蛋。每个巢有 1～3 枚蛋，剩余数量隐藏。巢上的 `?`、`+`、`X` 分别表示未搜寻、仍可搜寻、已搜空。搜寻时不能移动，松手会清除本次未完成的进度。
+3. **听到鸣叫就留意警戒。** 母鸡既能看见你，也能隔着木箱听到搜寻声。HUD 会区分这两种情况。警戒达到 **60**，农夫会在短暂预警后从北侧入场。他失去视线后会去最后目击点搜寻。躲到掩体后停止搜寻，连续 **3 秒**没有被看见或引发鸣叫，警戒才开始下降。农夫搜寻后会在警戒降至 **30** 或以下时撤退。
+4. **带着鸡蛋回来。** 达标后，在南侧绿色入口轻按 **E** 撤离。超时或被抓都会结束本局，结算页会显示鸡蛋数、用时和结果。
+
+### 快速试玩
+
+1. 用 **Godot 4.5.1 Standard** 导入 [project.godot](project.godot)。
+2. 按 **F5**，在开始界面点击 **开始行动**。
+
+游戏默认使用简体中文。在开始、暂停或结算界面点击 **English** 或 **中文** 可立即切换，本局进度会保留。重开也会保留当前语言。
 
 | 按键 | 操作 |
 | --- | --- |
-| WASD / 方向键 | 移动及改变朝向 |
-| 按住 E | 在鸟巢旁搜寻，每 2 秒取一枚蛋。松开会取消当前进度 |
-| 轻按 E | 拾取附近的绿袋。达标后，在南侧绿色入口撤离 |
-| Q | 朝前方投放一份饲料。落点不合法时保留库存 |
-| Esc / 暂停按钮 | 暂停、继续或重新开始 |
-
-每个鸟巢有 1～3 枚蛋，数量在开局时确定。巢上的 `?`、`+` 和 `X`
-分别表示未搜寻、仍可搜寻和已搜空。搜寻声能隔着掩体传播。HUD 会分别
-提示母鸡看见玩家和搜寻声引发鸣叫。
-
-警戒达到 **60** 时，农夫在预警后从北侧入场。躲到掩体后并停止搜寻，
-连续 **3 秒**没有被看见或引发鸣叫，警戒会开始下降。农夫会调查最后
-目击点，搜寻后在警戒降至 **30** 或以下时撤退。被抓或超时均会结算，
-结果页显示鸡蛋数、用时和结算原因。
-
-### 复现与队友验收
-
-编辑器运行时，「输出」面板会打印 `Round seed`。在 `game.tscn` 中选中
-`Game`，启用 **Round Seed → Use Fixed Seed**，将数值填入 **Fixed Seed**，
-即可复现地图、库存和巡逻。也可以在 `Layout` 启用 **Use Fixed Layout**
-使用原地图，或将 **Generation Attempts** 设为 0 验证自动回退。
-
-1. 用固定种子 **2** 观察巡逻，按住 E 搜寻后中途松开，确认未获得蛋。
-   搜空一个巢后继续按 E，确认总数不会再增加。
-2. 在无遮拦处触发警戒 60，观察预警和唯一的农夫入场。绕到木箱另一侧，
-   沿南侧通道拉开距离，停止搜寻，确认警戒下降。达标后在南侧按 E 撤离。
-3. 分别让倒计时耗尽和让农夫在无遮挡处抓到玩家，确认失败原因不同。
-   搜寻时按 Esc，确认计时、动作和进度冻结。暂停时松开 E，再按住 E
-   恢复，确认搜寻重新计时。连续重开，确认警戒、库存、诱饵、农夫和结算全部复位。
-4. 空手按 Q，再拾取饲料朝墙按 Q，确认两次均有提示且库存不扣减。
-   关闭固定种子，重开几局，检查鸟巢、饲料和入口都可到达。
-5. 在开始界面切换到 English，确认操作说明和按钮更新。开局后暂停并切回中文，
-   确认鸡蛋数和倒计时保持原值。结算时再次切换，检查原因和用时，并确认重开保留当前语言。
-
-### 素材与发布
-
-场景图形、地面、院子和灯光 SVG 均为项目原创。六段 WAV 提示音由项目合成。
-随项目分发的 UI 字体为 Noto Sans SC 子集，采用 [SIL 开源字体许可](assets/fonts/OFL.txt)。
-
-按[导出命令](#export-commands)可在本地构建 Windows、Web 和 Linux 版本。GitHub
-Actions 也会构建三平台并上传 `game-exports`。发布时，在已测试的提交上推送
-`vMAJOR.MINOR.PATCH` 标签。构建成功后，GitHub Releases 会生成 `web.zip`、
-`linux.zip` 和 `windows.zip`。手动运行工作流可以生成 `release-preview` 供试玩。
-每次正式发布使用新标签，并确保工作流的 `GITHUB_TOKEN` 拥有仓库内容写入权限。
-公共仓库的发布对外公开。桌面版本未签名，移动端需要单独的 SDK、配置和签名。
-
-在 Codex 云环境中连接 GitHub 并选择仓库，用 `.codex/setup.sh` 和下方 Linux
-命令配置、构建并保存环境。Codex 云环境与 GitHub Actions 运行器各自独立。
-如需发布 Web 版到 Cloudflare Workers，在 GitHub Actions secrets 中设置
-`CLOUDFLARE_API_TOKEN` 和 `CLOUDFLARE_ACCOUNT_ID`，在 variables 中设置
-`CLOUDFLARE_WORKER_NAME`。若使用保护规则，创建 `production` 环境。
-手动运行 **Deploy web (manual)** 后，从日志打开部署链接。凭据保存在 GitHub
-Secrets 中，构建目录 `build/` 已被 Git 忽略。
+| **WASD** / **方向键** | 移动与转向 |
+| **按住 E** | 搜寻附近的鸟巢 |
+| **轻按 E** | 拾取附近的绿色饲料袋，或在达标后撤离 |
+| **Q** | 朝前投放一份饲料。落点不合法时保留库存 |
+| **Esc** / **暂停按钮** | 暂停或继续。暂停菜单也可以重开 |
 
 ## English
 
-Sneak into a randomly generated chicken coop at night. Collect at least **6 eggs**
-and escape through the green south exit within **120 seconds**. Walls and crates
-block sight, and feed can briefly distract hens.
+### How a round plays
 
-### Launch and controls
+**Collect at least 6 eggs in 120 seconds and escape through the green south exit.** The round seed determines the layout and how many eggs each nest contains. One nest might be worth a single search. Another might tempt you to stay a little longer.
 
-Import `project.godot` in **Godot 4.5.1 Standard**, press **F5**, and click **Start**.
-The project uses GDScript and the Compatibility renderer. Install the matching
-Standard export templates before exporting.
+1. **Watch the hens.** Their vision cones turn with them, and walls and crates block sight. Pick up feed and throw it nearby to distract a hen long enough to slip past.
+2. **Decide whether to search again.** Hold **E** for two seconds near a nest to take one egg. Each nest holds 1–3 eggs, and the remaining count is hidden. The `?`, `+`, and `X` markers mean unsearched, still searchable, and empty. You stand still while searching. Letting go of **E** cancels the current search.
+3. **Listen for clucks.** Hens can see you or hear a search through cover. The HUD tells you which happened. At **60** alert, a warning appears and the farmer enters from the north. If he loses sight of you, he searches your last known position. Hide and stop searching. Alert starts falling after **3 seconds** without a sighting or cluck. The farmer retreats after searching once alert falls to **30** or below.
+4. **Get out with the eggs.** Once you have enough eggs, tap **E** at the green south exit. The round ends if the farmer catches you or time runs out. The results screen shows the egg count, elapsed time, and outcome.
 
-The game opens in Simplified Chinese. Click **English** or **中文** on the start,
-pause, or results screen to switch immediately. Switching preserves the current
-round, and restarting keeps the selected language.
+### Quick start
+
+1. Import [project.godot](project.godot) in **Godot 4.5.1 Standard**.
+2. Press **F5**, click **English**, then click **Start**.
+
+The game opens in Simplified Chinese. You can switch languages from the start, pause, or results screen. Switching keeps your round progress, and restarting keeps the selected language.
 
 | Input | Action |
 | --- | --- |
-| WASD / Arrow keys | Move and change facing direction |
-| Hold E | Search a nearby nest. Take one egg every 2 seconds. Releasing E cancels current progress |
-| Tap E | Pick up a nearby green feed bag, or use the green south exit once you have enough eggs |
-| Q | Throw one portion of feed ahead. An invalid landing spot costs no feed |
-| Esc / Pause button | Pause, resume, or restart |
+| **WASD** / **Arrow keys** | Move and turn |
+| **Hold E** | Search a nearby nest |
+| **Tap E** | Pick up a nearby green feed bag, or exit once you have enough eggs |
+| **Q** | Throw one portion of feed ahead. An invalid landing spot costs no feed |
+| **Esc** / **Pause button** | Pause or resume. You can also restart from the pause menu |
 
-Each nest starts with 1–3 eggs. Its inventory is set for the round and stays
-hidden. The `?`, `+`, and `X` markers indicate an unsearched nest, a nest you
-can keep searching, and an empty nest. Search noise can travel through cover.
-The HUD distinguishes being seen by a hen from a hen clucking after hearing a search.
+<a id="playtest"></a>
 
-At **60** alert, a warning appears and the farmer enters from the north. Hide
-behind cover and stop searching. Alert starts falling after **3 seconds** without
-a sighting or cluck. The farmer investigates your last known location and leaves
-after searching if alert has fallen to **30** or below. Getting caught or running
-out of time ends the round. The results show the egg count, elapsed time, and outcome.
+## 开发与验收 · Development and playtesting
 
-### Reproduce a round and playtest
+项目使用 **Godot 4.5.1 Standard**、**GDScript** 和 **Compatibility** 渲染器。各场景、脚本和素材的职责见 [项目文件说明](PROJECT_GUIDE.md)。
 
-In the editor, the Output panel prints `Round seed`. To reproduce the layout,
-egg inventory, and patrols, select `Game` in `game.tscn`, enable **Round Seed →
-Use Fixed Seed**, and enter the value in **Fixed Seed**. Enable **Use Fixed Layout**
-on `Layout` to use the original map, or set **Generation Attempts** to 0 to test
-the automatic fallback.
+The project uses **Godot 4.5.1 Standard**, **GDScript**, and the **Compatibility** renderer. See the [project file guide in Chinese](PROJECT_GUIDE.md) for a map of the scenes, scripts, and assets.
 
-1. Use seed **2**. Watch the patrols, hold E near a nest, then release it before
-   the search completes. Confirm you gained no egg. Empty a nest and keep
-   holding E to check that the count stops increasing.
-2. Raise alert to 60 in the open. Watch for the warning and a single farmer
-   entering. Break line of sight behind a crate, take the south corridor, and
-   stop searching so alert can fall. After meeting the egg goal, press E at
-   the south exit to win.
-3. Run out of time and get caught in separate rounds to check both failure reasons.
-   Pause while searching and confirm the timer, movement, and progress freeze.
-   Release E while paused, then hold it again and resume to check that search
-   progress starts over. Restart several times and check that alert, inventory,
-   bait, the farmer, and the results all reset.
-4. Press Q with no feed. Pick up a bag and press Q while facing a wall. Check
-   both notices and confirm neither throw consumes feed. Disable the fixed seed
-   and try several layouts to check that the nests, feed, and exit are reachable.
-5. Switch to English from the start screen and check the controls and buttons.
-   Pause during a round and switch to Chinese. Check that the egg count and
-   timer are preserved. Switch again on the results screen and check the outcome,
-   elapsed time, and language after restarting.
+- **复现一局 / Reproduce a round**
 
-### Assets and releases
+  从编辑器的输出面板复制 `Round seed`。打开 `game.tscn`，选中 `Game`，启用 **Round Seed → Use Fixed Seed**，在 **Fixed Seed** 填入种子。
 
-The scene shapes, floor, yard and lamp SVGs are original project artwork.
-The six WAV cues are original synthesized sounds made for this project.
-The bundled UI font is a subset of Noto Sans SC, distributed with
-the [SIL Open Font License](assets/fonts/OFL.txt).
+  Copy `Round seed` from the editor’s Output panel. In `game.tscn`, select `Game`, enable **Round Seed → Use Fixed Seed**, and paste the seed into **Fixed Seed**.
 
-The GitHub Actions build runs the commands below and uploads `game-exports`.
-To publish a tested build, push a new `vMAJOR.MINOR.PATCH` tag. After a successful
-build, find `web.zip`, `linux.zip`, and `windows.zip` under **Releases**. Run the
-workflow manually to download a `release-preview` artifact for playtesting.
-Keep Actions enabled and allow the workflow's `GITHUB_TOKEN` to write repository
-contents. Releases in public repositories are public. Desktop builds are
-unsigned. Mobile exports require separate SDKs, configuration, and signing.
+- **检查固定地图 / Inspect the fixed map**
 
-In Codex Cloud, connect GitHub and choose your repository. Use `.codex/setup.sh`
-and the Linux commands below to set up, build, and save the environment. The
-Codex Cloud environment and GitHub Actions runner are separate.
-For optional Cloudflare Workers deployment, add `CLOUDFLARE_API_TOKEN` and
-`CLOUDFLARE_ACCOUNT_ID` as GitHub Actions secrets, and set the
-`CLOUDFLARE_WORKER_NAME` variable. Create a `production` environment if using
-protection rules. Run **Deploy web (manual)** and open the deployment URL from
-the log. Store credentials in GitHub Secrets. Git ignores `build/`.
+  选中 `Layout`，启用 **Use Fixed Layout**。要测试自动回退，关闭固定地图并将 **Generation Attempts** 设为 0。
+
+  Select `Layout` and enable **Use Fixed Layout**. To test automatic fallback, turn it off and set **Generation Attempts** to 0.
+
+<details>
+<summary>队友试玩清单</summary>
+
+1. 用固定种子 **2**。在取到蛋之前松开 **E**，确认没有得蛋。搜空一个巢后继续按 **E**，确认计数保持不变。
+2. 触发警戒 **60**，确认预警后只出现一名农夫。绕到箱子后切断视线，停止搜寻并等待警戒下降。达标后到南侧按 **E** 撤离。
+3. 分别测试被抓和超时，核对结算原因。搜寻时按 **Esc**，确认计时、动作和搜寻进度暂停。暂停时松开 **E**，再按住并继续，确认搜寻重新计时。连续重开，确认警戒、鸡蛋和饲料库存、诱饵、农夫及结算全部复位。
+4. 空手按 **Q**，再拾取饲料朝墙投放，确认两种提示都正确，库存保持原值。关闭固定种子后重开几局，确认鸟巢、饲料与出口可达。
+5. 在开始、暂停和结算页切换中英文。核对按钮、提示与结果文字，确认倒计时和鸡蛋数保留，重开沿用当前语言。
+
+</details>
+
+<details>
+<summary>Playtest checklist</summary>
+
+1. Use fixed seed **2**. Release **E** before the search finishes and check that you gained zero eggs. Empty a nest, then keep holding **E** and check that the count stays the same.
+2. Raise alert to **60**. Check that the warning is followed by one farmer. Break line of sight behind a crate, stop searching, and wait for alert to fall. Reach the egg goal and press **E** at the south exit to escape.
+3. Get caught and run out of time in separate rounds to check both results. Pause while searching and check that time, movement, and search progress freeze. Release **E** while paused, hold it again, then resume and check that the search starts over. Restart several times and check that alert, egg and feed inventory, bait, the farmer, and the results reset.
+4. Press **Q** with empty pockets. Pick up a bag and throw towards a wall. Check both notices and confirm the inventory stays the same. Disable the fixed seed and check that nests, feed, and the exit are reachable in several new layouts.
+5. Switch languages on the start, pause, and results screens. Check buttons, prompts, and results. Confirm that time and egg counts are preserved and that the selected language carries over after restarting.
+
+</details>
 
 <a id="export-commands"></a>
 
 ## 导出命令 · Export commands
 
-在项目根目录运行。Windows 下把 `$godot` 改为实际安装路径。
+在项目根目录执行。Windows 使用与编辑器同版本的 **4.5.1 Standard** 导出模板，并将 `$godot` 改为本机路径。
 
-Run from the project root. On Windows, point `$godot` to your editor executable.
+Run from the project root. On Windows, install the matching **4.5.1 Standard** export templates and point `$godot` to your editor executable.
+
+### Windows PowerShell
 
 ```powershell
-$godot = 'E:\Godot\Godot_v4.5.1-stable_win64_console.exe'
+$godot = 'C:\path\to\Godot_v4.5.1-stable_win64_console.exe'
 New-Item -ItemType Directory -Force build/web,build/linux,build/windows | Out-Null
 if (-not (Test-Path build/.gdignore)) { New-Item -ItemType File build/.gdignore | Out-Null }
 & $godot --headless --path . --import
@@ -175,16 +120,15 @@ if (-not (Test-Path build/.gdignore)) { New-Item -ItemType File build/.gdignore 
 & $godot --headless --path . --export-release Windows build/windows/game.exe
 ```
 
-在 Linux x86_64 上，`.codex/setup.sh` 下载官方编辑器和模板，并执行无界面导入。
-运行前需要 `curl`、`unzip`、网络连接和数 GB 的可用空间。
+### Linux x86_64
 
-On Linux x86_64, `.codex/setup.sh` downloads the official editor and templates
-and runs a headless import. It requires `curl`, `unzip`, an internet connection,
-and several GB of free space.
+`.codex/setup.sh` 会下载官方编辑器和模板，并执行无界面导入。需要 `curl`、`unzip`、网络和数 GB 可用空间。
+
+`.codex/setup.sh` downloads the official editor and templates and runs a headless import. It requires `curl`, `unzip`, internet access, and several GB of free space.
 
 ```bash
 .codex/setup.sh
-GODOT="$HOME/.cache/sd5913-godot-4.5.1/godot"
+GODOT="${XDG_CACHE_HOME:-$HOME/.cache}/sd5913-godot-4.5.1/godot"
 mkdir -p build/web build/linux build/windows && touch build/.gdignore
 "$GODOT" --headless --path . --export-release Web build/web/index.html
 "$GODOT" --headless --path . --export-release Linux build/linux/game.x86_64
@@ -194,19 +138,47 @@ mkdir -p build/web build/linux build/windows && touch build/.gdignore
 | 平台 / Platform | 启动文件 / Entry point |
 | --- | --- |
 | Windows | `build/windows/game.exe` |
-| Web | `build/web/index.html` |
 | Linux x86_64 | `build/linux/game.x86_64` |
+| Web | `build/web/index.html` |
 
-Windows 和 Linux 版本需要与同目录的 `game.pck` 一起分发。Web 版保留同目录
-的全部文件，通过 HTTP 启动，打开 [本地试玩页](http://localhost:8000/)。
-导出的版本也可使用上面的试玩步骤。
+桌面版需和同目录的 `game.pck` 一起分发。Web 版保留整个 `build/web/`，通过 HTTP 启动。
 
-Keep the Windows and Linux executables next to their respective `game.pck`
-files. Serve all files in the Web output over HTTP and open the [local playtest page](http://localhost:8000/).
-Use the same playtest steps for exported builds.
+Keep each desktop executable next to its `game.pck`. Serve the entire `build/web/` directory over HTTP.
 
 ```bash
 python -m http.server 8000 --directory build/web
 ```
 
+[本地试玩页 / Local playtest page](http://localhost:8000/)
+
+### 发布与部署 · Releases and deployment
+
+<details>
+<summary>GitHub Actions、Codex Cloud 与 Cloudflare</summary>
+
+- **GitHub Actions** 会导出三平台并上传 `game-exports`。手动运行 **Check and export** 可获得 `release-preview`。推送新的 `vMAJOR.MINOR.PATCH` 标签后，构建成功会在 GitHub Releases 发布 `web.zip`、`linux.zip` 和 `windows.zip`。发布任务的 `GITHUB_TOKEN` 需要仓库内容写权限。公共仓库的发布对外公开。
+- **Codex Cloud** 连接 GitHub 并选择仓库后，用 `.codex/setup.sh` 和上面的 Linux 命令配置环境与构建。Codex 云环境和 GitHub Actions 运行器各自独立。
+- **Cloudflare Workers** 使用 GitHub Actions secrets `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID` 及变量 `CLOUDFLARE_WORKER_NAME`。部署流程使用 `production` 环境，可按需配置保护规则。手动运行 **Deploy web (manual)** 后，从日志打开部署链接。
+
+桌面构建未签名，移动端导出需要单独的 SDK、配置和签名。凭据存放在 GitHub Secrets，`build/` 已被 Git 忽略。
+
+</details>
+
+<details>
+<summary>GitHub Actions, Codex Cloud, and Cloudflare</summary>
+
+- **GitHub Actions** exports all three targets and uploads `game-exports`. Run **Check and export** manually to get a `release-preview` artifact. Push a new `vMAJOR.MINOR.PATCH` tag to publish `web.zip`, `linux.zip`, and `windows.zip` under GitHub Releases after a successful build. The release job’s `GITHUB_TOKEN` needs repository contents write permission. Releases in public repositories are public.
+- **Codex Cloud** uses `.codex/setup.sh` and the Linux commands above after you connect GitHub and select the repository. The Codex Cloud environment and GitHub Actions runner are separate.
+- **Cloudflare Workers** uses GitHub Actions secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, plus the `CLOUDFLARE_WORKER_NAME` variable. The workflow uses the `production` environment, where you can configure protection rules. Run **Deploy web (manual)** and open the deployment URL from the log.
+
+Desktop builds are unsigned. Mobile exports require separate SDKs, configuration, and signing. Keep credentials in GitHub Secrets. Git ignores `build/`.
+
+</details>
+
 [Godot 导出文档 / Godot export documentation](https://docs.godotengine.org/en/4.5/tutorials/export/index.html)
+
+## 素材与许可 · Assets and credits
+
+场景图形、地板、院子和灯光 SVG 均为项目原创。六段 WAV 提示音由项目合成。UI 使用 Noto Sans SC 子集。[SIL 开源字体许可](assets/fonts/OFL.txt)
+
+The scene artwork, floor, yard, and lamp SVGs are original to the project. The six WAV cues were synthesized for the game. The UI uses a subset of Noto Sans SC. [SIL Open Font License](assets/fonts/OFL.txt)
