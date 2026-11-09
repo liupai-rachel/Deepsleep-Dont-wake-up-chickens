@@ -2,8 +2,8 @@
 
 用 **Godot 4.5.1 Standard** 导入 [project.godot](project.godot)，按 **F5** 会打开
 [game.tscn](game.tscn)，由 [game.gd](game.gd) 组织整局玩法。新组员可以先打开
-`game.tscn` 看节点树，再按下表找到负责对应功能的场景和脚本。操作、试玩与导出步骤见
-[README](README.md)。
+`game.tscn` 看节点树，再按下表找到负责对应功能的场景和脚本。玩法与架构概览见
+[中文版 README](README.md)或[英文版 README](README.en.md)。
 
 ## 根目录文件
 
@@ -13,7 +13,7 @@
 | [game.tscn](game.tscn) | 主场景和编辑器里的固定地图。包含地面、外围墙、木箱、鸟巢、母鸡和巡逻点、饲料、玩家、撤离点与农夫入口，并挂载 HUD 和音频。 |
 | [game.gd](game.gd) | 整局调度。生成种子和初始库存，管理倒计时和搜寻，把母鸡的发现与鸣叫传给警戒系统，触发农夫入场，并处理暂停、胜负和重开。鸡蛋目标、每局时间、搜寻时长和农夫入场阈值可在 `Game` 检查器里调整。 |
 | [export_presets.cfg](export_presets.cfg) | Web、Linux、Windows 的导出预设。 |
-| [README.md](README.md) | 中英文启动、操作、玩法、固定种子复现、试玩和导出说明。 |
+| [README.md](README.md) · [README.en.md](README.en.md) | 中文和英文的玩法介绍与项目架构概览。 |
 | [AGENTS.md](AGENTS.md) | 给代码助手的项目约定，包括 Godot 版本、导入与导出检查、构建产物和凭据管理。 |
 | [.gitignore](.gitignore) | Git 忽略规则。目前排除 `.godot/`、`build/` 和 `.env`。 |
 
@@ -59,7 +59,7 @@
   `build/.gdignore` 让 Godot 跳过扫描。Git 忽略整个 `build/`，组员拉取仓库时不会收到这里的构建或验收脚本。
 - `.godot/` 是 Godot 缓存，`.vs/` 是 Visual Studio 的本机索引和工作区设置，`.git/` 是 Git 仓库数据。
   根目录下的 `export_templates/`、`feature_profiles/`、`script_templates/` 和 `text_editor_themes/` 是本机目录。
-  实际导出模板由各自的 Godot 环境安装，安装方式见 README。
+  实际导出模板由各自的 Godot 环境安装，版本须与 Godot 4.5.1 Standard 匹配。
 
 ## 分工与交接
 
@@ -70,4 +70,4 @@
 - **界面和美术组**在 `.tscn` 改排版与图形，在 `en.po` 同步英文。修改箱子或角色尺寸后，
   和玩法组一起验收碰撞、遮挡和寻路。
 - **提交前**用 `git status --short` 确认主场景引用的 `scenes/` 和 `assets/` 文件、配套元数据和文档都已纳入版本控制，
-  并将 `.vs/`、构建产物与凭据留在本机。让组员从干净检出按 README 导入、运行并复现一次改动。
+  并将 `.vs/`、构建产物与凭据留在本机。让组员从干净检出导入 `project.godot`，按 **F5** 运行并复现一次改动。
