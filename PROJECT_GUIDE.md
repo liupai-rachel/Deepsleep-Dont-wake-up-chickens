@@ -1,7 +1,7 @@
 # 夜访鸡舍项目文件说明
 
 用 **Godot 4.5.1 Standard** 导入 [project.godot](project.godot)，按 **F5** 会打开
-[game.tscn](game.tscn)，由 [game.gd](game.gd) 组织整局玩法。新组员可以先打开
+[game.tscn](game.tscn)，由 [game.gd](game.gd) 组织整局玩法。可以先打开
 `game.tscn` 看节点树，再按下表找到负责对应功能的场景和脚本。玩法与架构概览见
 [中文版 README](README.md)或[英文版 README](README.en.md)。
 
