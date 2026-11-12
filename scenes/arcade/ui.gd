@@ -22,6 +22,7 @@ var stage_label: Label
 var hint: Label
 var toast: Label
 var combo_bar: ProgressBar
+var danger_label: Label
 var pause_button: Button
 var round_duration := 120
 var _toast_left := 0.0
@@ -48,6 +49,7 @@ func _ready() -> void:
 	frames.set_script(preload("res://scenes/hud_frames.gd"))
 	frames.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	screen.add_child(frames)
+	danger_label = _label(screen,Rect2(205,10,166,30),"",15)
 	score_label = _label(screen,Rect2(47,11,137,31),"",17)
 	time_label = _label(screen,Rect2(832,11,106,31),"2:00",18)
 	combo_label = _label(screen,Rect2(387,14,186,20),"",14)
@@ -124,10 +126,10 @@ func update_game(score: int, eggs: int, chain: int, multiplier: int, combo_left:
 	score_label.text = tr2("得分 %d","Score %d") % score
 	egg_label.text = tr2("鸡蛋 %d","Eggs %d") % eggs
 	time_label.text = "%d:%02d" % [ceili(seconds)/60,ceili(seconds)%60]
-	combo_label.text = tr2("连捡 %d  ×%d","Chain %d  x%d") % [chain,multiplier] if chain > 0 else tr2("右键开始收集","Right-click to collect")
+	combo_label.text = tr2("连捡 %d  ×%d","Chain %d  x%d") % [chain,multiplier] if chain > 0 else tr2("左键开始收集","Left-click to collect")
 	combo_bar.value = combo_left
 	stage_label.text = ("%d · " % level) + (STAGE_EN if language == "en" else STAGE_ZH)[level-1]
-	hint.text = tr2("右键捡蛋 / 连点鸡窝　 WASD 移动","Right-click eggs / nests   WASD move")
+	hint.text = tr2("左键捡圈内蛋 / 连点草窝　 WASD 移动","Left-click nearby eggs / nests   WASD move")
 
 func show_menu(profile: ArcadeProfile, selected: int, result := {}, paused := false) -> void:
 	_profile = profile
@@ -147,9 +149,9 @@ func show_menu(profile: ArcadeProfile, selected: int, result := {}, paused := fa
 	overlay.add_child(panel)
 	var title := tr2("夜访鸡舍 · 捡蛋冲分","NIGHT COOP: EGG RUSH")
 	if paused: title = tr2("休息一下","PAUSED")
-	elif not result.is_empty(): title = tr2("本局收获","ROUND COMPLETE")
+	elif not result.is_empty(): title = tr2("被农夫抓住 · 提前结算","CAUGHT · RUN ENDED") if result.get("caught",false) else tr2("本局收获","ROUND COMPLETE")
 	_label(panel,Rect2(20,14,716,41),title,28 if language == "zh" else 25)
-	var summary := tr2("右键点击蛋或鸡窝，鸡蛋立即飞入背包；靠近不会自动捡。","Right-click an egg or nest to collect. Walking near eggs does not collect them.")
+	var summary := tr2("左键点击蛋或鸡窝，鸡蛋立即飞入背包；只能拾取圈内目标。","Left-click an egg or nest to collect. Only eggs within your pickup ring can be collected.")
 	if not result.is_empty():
 		summary = tr2("得分 %d　鸡蛋 %d　奖励 %d 币　%s","Score %d   Eggs %d   +%d coins   %s") % [result.score,result.get("eggs",0),result.reward,tr2("新纪录！","NEW BEST!") if result.record else ""]
 	_label(panel,Rect2(15,60,726,28),summary,15)
@@ -165,7 +167,7 @@ func show_menu(profile: ArcadeProfile, selected: int, result := {}, paused := fa
 		if level == selected: button.add_theme_stylebox_override("normal",_style(Color("584127"),Color("ffe0a0"),2))
 	_label(panel,Rect2(18,182,720,24),tr2("钱币 %d　｜　本关最高分 %d","Coins %d   |   Stage best %d") % [profile.coins,profile.best[selected-1]],17)
 	var names := [tr2("连收范围","Gather radius"),tr2("额外收获","Bonus eggs"),tr2("鸡窝补货","Nest refill")]
-	var details := [tr2("一次右键收集附近更多蛋","One click gathers nearby eggs"),tr2("每级增加 10%% 双份概率","+10%% chance of an extra egg / level"),tr2("缩短空鸡窝的补货间隔","Empty nests refill sooner")]
+	var details := [tr2("扩大拾取圈，连收附近更多蛋","More reach and nearby eggs"),tr2("每级增加 10%% 双份概率","+10%% chance of an extra egg / level"),tr2("缩短空鸡窝的补货间隔","Empty nests refill sooner")]
 	for i in range(3):
 		var index := i
 		var price := profile.cost(i)
@@ -174,7 +176,7 @@ func show_menu(profile: ArcadeProfile, selected: int, result := {}, paused := fa
 		var text := tr2("已满级","MAX LEVEL") if price < 0 else tr2("升级 · %d 币","Upgrade · %d coins") % price
 		var button := _button(panel,Rect2(30+i*240,274,216,35),text,func(): upgrade_requested.emit(index))
 		button.disabled = paused or price < 0 or profile.coins < price
-	var guide := tr2("WASD 移动 · 右键拾取 · Esc 暂停\n鸡窝里的蛋数直接可见；第 3、4 关后半程出现黄金鸡。","WASD move · Right-click collect · Esc pause\nVisible nest stocks. Golden hens arrive in stages 3–4 after halfway.")
+	var guide := tr2("WASD 移动 · 圈内左键捡蛋 · Esc 暂停\n躲开鸡的扇形视野；警戒过高会引来农夫。","WASD move · Left-click within your ring · Esc pause\nAvoid hen sight cones. High alert brings the farmer.")
 	_label(panel,Rect2(18,319,720,43),guide,14)
 	if not profile.saved:
 		_label(panel,Rect2(18,361,720,20),tr2("当前浏览器无法保存进度，关闭后升级可能丢失。","Storage is unavailable; upgrades may be lost when this tab closes."),12)
@@ -194,3 +196,7 @@ func show_menu(profile: ArcadeProfile, selected: int, result := {}, paused := fa
 func hide_menu() -> void:
 	overlay.hide()
 	pause_button.show()
+
+func update_danger(level: float, seen: bool, farmer_present: bool) -> void:
+	danger_label.text = tr2("农夫正在追赶！","Farmer chasing!") if farmer_present else tr2("警戒 %d / 100","Alert %d / 100") % floori(level)
+	danger_label.add_theme_color_override("font_color",Color("ff8b72") if seen or farmer_present else Color("ffe5ad"))

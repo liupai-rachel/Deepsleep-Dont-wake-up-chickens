@@ -60,11 +60,11 @@ func buy(index: int) -> bool:
 	save_progress()
 	return true
 
-func settle(level: int, score: int) -> Dictionary:
+func settle(level: int, score: int, unlock_next := true) -> Dictionary:
 	var reward := maxi(0, score) / 5
 	var record: bool = score > best[level - 1]
 	best[level - 1] = maxi(best[level - 1], score)
 	coins += reward
-	unlocked = maxi(unlocked, mini(4, level + 1))
+	if unlock_next: unlocked = maxi(unlocked, mini(4, level + 1))
 	save_progress()
 	return {"level": level, "score": score, "reward": reward, "record": record}

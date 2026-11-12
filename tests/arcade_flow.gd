@@ -34,6 +34,7 @@ func run() -> void:
 	var game: ArcadeGame = load("res://scenes/arcade/game.tscn").instantiate()
 	game.profile = profile
 	game.use_fixed_seed = true
+	game.guards_enabled = false
 	root.add_child(game)
 	await tick(3)
 	expect(game.ui.overlay.visible and not game.running,"Start menu must be visible before the timer starts")
@@ -48,14 +49,28 @@ func run() -> void:
 	game.player.position = point
 	await tick(8)
 	expect(game.collected == 0,"Walking onto eggs must not auto-collect")
-	await click(game,MOUSE_BUTTON_LEFT,point)
-	expect(game.collected == 0,"Left click must not pick up eggs")
 	await click(game,MOUSE_BUTTON_RIGHT,point)
-	expect(game.collected == 1 and game.score == 1,"Right click must immediately collect and score")
+	expect(game.collected == 0,"Right click must not pick up eggs")
+	await click(game,MOUSE_BUTTON_LEFT,point)
+	expect(game.collected == 1 and game.score == 1,"Nearby left click must immediately collect and score")
 	var unchanged := game.score
 	game.collect_at(point)
 	expect(game.score == unchanged,"A removed egg cannot be collected again")
+	var far: ArcadeEgg
+	for candidate in game.eggs:
+		if game.player.position.distance_to(candidate.position) > game.pickup_radius()+20:
+			far = candidate
+			break
+	expect(far != null,"The map should contain eggs outside the local pickup ring")
+	if far != null:
+		var before_score := game.score
+		expect(not game.collect_at(far.position),"Distant eggs must be rejected")
+		expect(game.score == before_score and game.eggs.has(far),"Rejected pickup must not remove an egg or score")
 	var nest: ArcadeNest = game.nests[0]
+	game.player.position = nest.position+Vector2(game.pickup_radius()+50,0)
+	var distant_stock := nest.stock
+	expect(not game.collect_at(nest.position) and nest.stock == distant_stock,"Distant nests must not dispense eggs")
+	game.player.position = nest.position+Vector2(0,30)
 	var stock := nest.stock
 	var collected_before := game.collected
 	for i in range(stock): expect(game.collect_at(nest.position),"Each nest click should immediately yield one egg")
@@ -101,6 +116,20 @@ func run() -> void:
 		for ground: ArcadeEgg in game.eggs:
 			expect(game.world.is_free(ground.position,12,true),"Eggs must not spawn inside obstacles or nests")
 		if level == 2:
+			var boundary_origin := Vector2.ZERO
+			var radius := game.pickup_radius()
+			for attempt in range(300):
+				boundary_origin = game.world.free_point(20,true)
+				if game.world.step_clear(boundary_origin,boundary_origin+Vector2(radius+6,0)): break
+			var inside := boundary_origin+Vector2(radius-6,0)
+			var outside := boundary_origin+Vector2(radius+6,0)
+			game._spawn_egg_at(inside,false)
+			game._spawn_egg_at(outside,false)
+			var outside_egg: ArcadeEgg = game.eggs.back()
+			game.player.position = boundary_origin
+			expect(game.can_collect_point(inside) and not game.can_collect_point(outside),"Circle boundary must distinguish reachable and distant eggs")
+			expect(game.collect_at(inside),"The egg just inside the ring must be collectible")
+			expect(game.eggs.has(outside_egg) and not outside_egg.claimed,"Gather upgrades must not pull a neighboring egg from outside the ring")
 			var gather_point := game.world.free_point(20,true)
 			for attempt in range(100):
 				if game.world.is_free(gather_point+Vector2(20,0),12,true): break
@@ -108,6 +137,7 @@ func run() -> void:
 			game._spawn_egg_at(gather_point,false)
 			game._spawn_egg_at(gather_point+Vector2(20,0),false)
 			var before := game.collected
+			game.player.position = gather_point
 			game.collect_at(gather_point)
 			expect(game.collected >= before+2,"Gather upgrade must collect adjacent eggs from one manual click")
 		if level >= 3:
@@ -124,6 +154,7 @@ func run() -> void:
 			expect(gold != null,"A full ordinary field must still allow golden eggs")
 			if gold != null:
 				var old_score := game.score
+				game.player.position = gold.position
 				game.collect_at(gold.position)
 				expect(game.score >= old_score+5,"Golden eggs must be worth more")
 		if level == 4:
@@ -131,6 +162,45 @@ func run() -> void:
 			expect(game.golden_count == 2,"Final stage should add a second golden hen later")
 		game.finish_round()
 		await tick(2)
+	# Preserve the original hen vision, alarm and farmer pressure in the new mode.
+	game.guards_enabled = true
+	game.begin_round(1)
+	await tick(5)
+	for other in game.hens: other.set_physics_process(false)
+	var guard: ArcadeHen = game.hens[0]
+	guard.patrol_points.clear()
+	var origin := game.world.free_point(30,true)
+	for attempt in range(200):
+		if game.world.step_clear(origin,origin+Vector2(80,0)): break
+		origin = game.world.free_point(30,true)
+	guard.position = origin
+	guard._facing = Vector2.RIGHT
+	game.player.position = origin+Vector2(80,0)
+	guard.set_physics_process(true)
+	await tick(4)
+	expect(guard.sees_player and game.alert.level > 0,"Patrolling hens must see the player and raise global alert")
+	expect(guard.get_node("Vision").polygon.size() > 3,"Hen must retain its occluded vision fan")
+	expect(guard.patrol_speed > 64.0,"Hen patrol should be slightly faster than the old baseline")
+	var cover: Rect2 = game.world.solids[0]
+	guard.position = cover.get_center()-Vector2(0,80)
+	guard._facing = Vector2.DOWN
+	game.player.position = cover.get_center()+Vector2(0,80)
+	await tick(4)
+	expect(not guard.sees_player,"Crates must block hen sight")
+	expect(not game.can_collect_point(cover.get_center()-Vector2(0,60)),"Crates must block otherwise nearby pickups")
+	guard.set_physics_process(false)
+	guard.sees_player = false
+	game.alert.level = 65
+	await tick(125)
+	expect(is_instance_valid(game.farmer),"High alert must summon the original farmer")
+	if is_instance_valid(game.farmer):
+		game.profile.unlocked = 1
+		game.score = 50
+		game.farmer.position = game.player.position
+		await tick(4)
+		expect(not game.running and game.last_result.get("caught",false),"Capture must end the round and preserve a settlement")
+		expect(game.profile.unlocked == 1,"Capture must not unlock a new stage early")
+	for stream in game.audio.get_children(): expect(not stream.playing,"Audio should remain off")
 	# Corrupt/old saves should recover to safe defaults rather than crash.
 	var bad := FileAccess.open(SAVE_PATH,FileAccess.WRITE)
 	bad.store_string("bad json")
@@ -144,5 +214,5 @@ func run() -> void:
 	game.queue_free()
 	await process_frame
 	DirAccess.remove_absolute(SAVE_PATH)
-	if failures == 0: print("PASS: manual right-click collection, visible nest stocks, spawning, pause, timeout settlement, saved upgrades, four growing stages and golden hens")
+	if failures == 0: print("PASS: local left-click collection, distance rejection, hen vision and farmer alarms, visible nest stocks, spawning, pause, timeout settlement, saved upgrades, four growing stages and golden hens")
 	quit(1 if failures > 0 else 0)

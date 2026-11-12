@@ -9,6 +9,7 @@ var solids: Array[Rect2] = []
 var nest_points: Array[Vector2] = []
 var rng := RandomNumberGenerator.new()
 var floor_texture: AtlasTexture
+var navigation: NavigationRegion2D
 
 func build(level: int, seed_value: int) -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -40,6 +41,7 @@ func build(level: int, seed_value: int) -> void:
 		cover.position = point
 		add_child(cover)
 		solids.append(Rect2(point-Vector2(52,38),Vector2(104,76)))
+	bake_navigation()
 	queue_redraw()
 
 func _add_collision(rect: Rect2) -> void:
@@ -51,6 +53,7 @@ func _add_collision(rect: Rect2) -> void:
 	var shape := RectangleShape2D.new()
 	shape.size = rect.size
 	collider.shape = shape
+	collider.add_to_group("vision_cover")
 	body.add_child(collider)
 	add_child(body)
 
@@ -59,6 +62,7 @@ func is_free(point: Vector2, padding := 18.0, avoid_nests := false) -> bool:
 	if point.distance_to(Vector2(bounds.get_center().x,bounds.end.y-45)) < padding+26: return false
 	for rect in solids:
 		if rect.grow(padding).has_point(point): return false
+	if point.distance_to(Vector2(bounds.get_center().x,bounds.position.y+25)) < padding+32: return false
 	if avoid_nests:
 		for nest in nest_points:
 			if nest.distance_to(point) < 55.0 + padding: return false
@@ -85,3 +89,16 @@ func _draw() -> void:
 		for x in range(int(bounds.position.x),int(bounds.end.x),128):
 			var size := Vector2(minf(128,bounds.end.x-x),minf(96,bounds.end.y-y))
 			draw_texture_rect_region(floor_texture,Rect2(Vector2(x,y),size),Rect2(Vector2.ZERO,size*2))
+
+func bake_navigation() -> void:
+	navigation = NavigationRegion2D.new()
+	add_child(navigation)
+	var mesh := NavigationPolygon.new()
+	mesh.agent_radius = 16.0
+	mesh.parsed_geometry_type = NavigationPolygon.PARSED_GEOMETRY_STATIC_COLLIDERS
+	mesh.parsed_collision_mask = 2
+	var source := NavigationMeshSourceGeometryData2D.new()
+	NavigationServer2D.parse_source_geometry_data(mesh,source,self)
+	source.add_traversable_outline(PackedVector2Array([bounds.position,Vector2(bounds.end.x,bounds.position.y),bounds.end,Vector2(bounds.position.x,bounds.end.y)]))
+	NavigationServer2D.bake_from_source_geometry_data(mesh,source)
+	navigation.navigation_polygon = mesh
