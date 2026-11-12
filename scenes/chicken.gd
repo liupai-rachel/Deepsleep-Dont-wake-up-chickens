@@ -7,8 +7,6 @@ const VISION_SEGMENTS := 32
 const CORNER_OFFSET := 0.0001
 const PATROL_CONE := Color(1.0, 0.79, 0.36, 0.23)
 const DETECTED_CONE := Color(1.0, 0.29, 0.23, 0.36)
-const PATROL_FEATHERS := Color(0.98, 0.91, 0.75)
-const DETECTED_FEATHERS := Color(1.0, 0.47, 0.43)
 
 @export var patrol_points: Array[Marker2D] = []
 @export var player: CoopPlayer
@@ -39,12 +37,10 @@ var _cluck_cooldown_left := 0.0
 var _bait: CoopFeed
 var _eat_left := 0.0
 var _returning_to_patrol := false
-var _motion_phase := 0.0
 var _vision_ray := PhysicsRayQueryParameters2D.new()
 var _patrol_rng := RandomNumberGenerator.new()
 
-@onready var _body: Node2D = $Body
-@onready var _feathers: Polygon2D = $Body/Feathers
+@onready var _body: CoopCharacterArt = $Body
 @onready var _vision: Polygon2D = $Vision
 @onready var _notice: Label = $Notice
 @onready var _pecking: Label = $Pecking
@@ -57,20 +53,15 @@ func set_patrol_seed(seed_value: int) -> void:
 
 func _physics_process(delta: float) -> void:
 	var previous_position := position
-	_motion_phase += delta
 	_cluck_cooldown_left = maxf(_cluck_cooldown_left - delta, 0.0)
 	if not _follow_bait(delta):
 		if _returning_to_patrol:
 			_return_to_patrol(delta)
 		else:
 			_patrol(delta)
-	_body.rotation = _facing.angle()
 	_pecking.visible = _eat_left > 0.0
-	if _pecking.visible:
-		_body.position = _facing * (sin(_motion_phase * 23.0) * 2.2)
-	else:
-		_body.position.y = sin(_motion_phase * 18.0) * 1.5 if position != previous_position else 0.0
-		_body.position.x = 0.0
+	var action: StringName = &"eat" if _eat_left > 0.0 else (&"alarm" if _cluck_cooldown_left > cluck_cooldown - 0.4 else &"idle")
+	_body.update_pose(_facing, position.distance_squared_to(previous_position) > 0.001, action, delta)
 
 	var space := get_world_2d().direct_space_state
 	var half_angle := deg_to_rad(vision_angle * 0.5)
@@ -251,6 +242,5 @@ func _set_player_visible(detected: bool) -> void:
 		return
 	sees_player = detected
 	_vision.color = DETECTED_CONE if detected else PATROL_CONE
-	_feathers.color = DETECTED_FEATHERS if detected else PATROL_FEATHERS
 	_notice.visible = detected
 	player_visibility_changed.emit(detected)

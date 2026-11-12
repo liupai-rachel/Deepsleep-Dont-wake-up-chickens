@@ -243,6 +243,7 @@ func _update_alert(delta: float, searching: bool) -> void:
 func _throw_feed() -> void:
 	match _feed.throw_from(_player):
 		CoopFeedField.ThrowResult.PLACED:
+			_player.show_feed_toss()
 			_hud.show_feed_notice("已投放饲料")
 		CoopFeedField.ThrowResult.EMPTY:
 			_hud.show_feed_notice("没有饲料可投放")
