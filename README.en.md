@@ -9,7 +9,7 @@ Night Coop is a single-player, top-down stealth game. Sneak into a chicken coop 
 - **Search for eggs.** Each nest hides one to three eggs. Its marker tells you whether it has been searched or emptied. Hold **E** near a nest to take one egg every two seconds. You stay still while searching, and releasing **E** cancels the current search.
 - **Hide and distract.** Three hens patrol the coop, and their vision cones turn with them. Walls and crates block sight, but hens can still hear you search. Tap **E** to pick up feed, then press **Q** to throw it ahead and draw nearby hens away.
 - **Manage alert and escape.** Alert rises when a hen sees you or clucks after hearing a search. At **60** alert, the farmer enters from the north. If he loses sight of you, he checks your last known position. Hide and stop searching to let alert fall. Once you have enough eggs, tap **E** at the south exit. Getting caught or running out of time ends the round.
-- **Seeded layouts and bilingual UI.** The round seed drives the layout, nest inventories, and patrol variation. You can switch between Simplified Chinese and English on the start, pause, and results screens.
+- **Pixel coop and bilingual UI.** The default authored level combines golden paving, blue night scenery, stacked crate-and-hay cover, and teal-roofed nests. The round seed still drives nest inventories and patrol variation. Disable Layout > Use Fixed Layout to restore seeded layouts. You can switch between Simplified Chinese and English on the start, pause, and results screens.
 
 ## Project architecture
 

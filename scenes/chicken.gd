@@ -5,7 +5,7 @@ signal player_visibility_changed(detected: bool)
 
 const VISION_SEGMENTS := 32
 const CORNER_OFFSET := 0.0001
-const PATROL_CONE := Color(1.0, 0.79, 0.36, 0.23)
+const PATROL_CONE := Color(1.0, 0.87, 0.29, 0.42)
 const DETECTED_CONE := Color(1.0, 0.29, 0.23, 0.36)
 
 @export var patrol_points: Array[Marker2D] = []

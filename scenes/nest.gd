@@ -11,7 +11,7 @@ const MAX_EGGS := 3
 var eggs_left := 0
 var status := Status.UNSEARCHED
 
-@onready var _straw: Polygon2D = $Straw
+@onready var _straw: Sprite2D = $Straw
 @onready var _status_mark: Label = $StatusMark
 
 
@@ -25,11 +25,11 @@ func take_egg() -> bool:
 	eggs_left -= 1
 	if eggs_left == 0:
 		status = Status.EMPTY
-		_straw.color = Color(0.52, 0.43, 0.34)
+		_straw.modulate = Color(0.58, 0.52, 0.45)
 		_status_mark.text = "X"
 	else:
 		status = Status.SEARCHABLE
-		_straw.color = Color(0.67, 0.75, 0.39)
+		_straw.modulate = Color(1.0, 0.9, 0.67)
 		_status_mark.text = "+"
 	return true
 

@@ -64,7 +64,7 @@
 ## 分工与交接
 
 - **关卡**从 `game.tscn` 入手。编辑器里移动箱子或鸟巢后，在 `Layout` 节点启用 **Use Fixed Layout** 验证摆放。
-  默认随机模式会在开局重新摆放这些物件。修改随机布局规则时看 `coop_layout.gd`。
+  本版默认启用固定布局；关闭 Use Fixed Layout 后会在开局重新摆放这些物件。修改随机布局规则时看 `coop_layout.gd`。
 - **玩法**先用检查器调数值。搜寻和通关目标看 `Game`，警戒衰减看 `Alert`，巡逻和感知看母鸡，追赶与撤退看农夫。
   遇到随机地图问题，交接时附上 `Round seed` 和复现步骤。
 - **界面和美术**在 `.tscn` 改排版与图形，在 `en.po` 同步英文。修改箱子或角色尺寸后，
@@ -80,3 +80,12 @@
 `assets/art/pixel_cutout.gdshader` 去掉图集透明背景上的微弱残留像素。
 
 测试时检查玩家四向移动、按住 E 搜寻、Q 投放，以及母鸡走路、啄食、鸣叫和农夫追赶时的姿态。
+
+## 鸡舍与界面视觉
+
+`coop_backdrop.png` 提供暖色地面与蓝色夜景，`coop_projection.gdshader` 将图中的地面边缘对齐现有碰撞范围。
+`coop_props.png` 是独立的鸡窝、木箱草垛、饲料袋与谷粒图集，`prop_art.gd` 只负责显示。
+掩体碰撞与视线遮挡仍由各场景的 CollisionShape2D 负责，导航仍使用 Floor 的 polygon。
+角色与道具启用纵向排序，背景保持在下层；默认固定布局便于对照视觉参考调试。
+`hud_frames.gd` 绘制金边 HUD，搜寻进度跟随玩家上方；中英双语、暂停和结算保留。
+英文 HUD 使用 Press Start 2P（`assets/fonts/PressStart2P-OFL.txt`），中文继续使用原有字体。
