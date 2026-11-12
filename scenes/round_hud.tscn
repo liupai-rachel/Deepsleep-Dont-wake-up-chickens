@@ -328,7 +328,7 @@ horizontal_alignment = 1
 layout_mode = 2
 theme_override_colors/font_color = Color(0.81, 0.87, 0.92, 1)
 theme_override_font_sizes/font_size = 17
-text = "在时限内收集足够鸡蛋，从南侧入口撤离。\n避开母鸡视野，利用木箱和饲料争取时间。"
+text = "在时限内收集足够鸡蛋，从南侧入口撤离。\n怀疑条满才报警，躲到木箱后可消退。\n青色鸡窝收益低，橙色鸡窝收益高。"
 horizontal_alignment = 1
 
 [node name="Separator" type="HSeparator" parent="Screen/Menu/Center/Panel/Content"]
@@ -349,7 +349,7 @@ horizontal_alignment = 2
 [node name="Actions" type="Label" parent="Screen/Menu/Center/Panel/Content/Controls"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
-text = "移动\n按住搜寻，轻按拾取或撤离\n投放饲料\n暂停或继续"
+text = "移动\n按住搜寻，轻按拾取或撤离\n按住瞄准，松开投放\n暂停或继续"
 
 [node name="Buttons" type="HBoxContainer" parent="Screen/Menu/Center/Panel/Content"]
 layout_mode = 2

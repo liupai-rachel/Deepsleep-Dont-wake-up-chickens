@@ -162,3 +162,24 @@ msgstr "Eggs %d / %d    Time %s"
 
 msgid "鸡蛋 6 / 6    用时 1:12"
 msgstr "Eggs 6 / 6    Time 1:12"
+
+msgid "按住 Q 瞄准，松开投放；右键取消"
+msgstr "Hold Q to aim, release to throw; right-click cancels"
+
+msgid "高收益鸡窝，按住 E 搜寻"
+msgstr "Rich nest: hold E to search"
+
+msgid "低收益鸡窝，按住 E 搜寻"
+msgstr "Small nest: hold E to search"
+
+msgid "移动\n按住搜寻，轻按拾取或撤离\n按住瞄准，松开投放\n暂停或继续"
+msgstr "Move\nHold to search. Tap to pick up or exit.\nHold to aim; release to throw\nPause or resume"
+
+msgid "按住搜寻，轻按拾取或撤离\n按住瞄准，松开投放\n暂停或继续"
+msgstr "Hold to search. Tap to pick up or exit.\nHold to aim; release to throw\nPause or resume"
+
+msgid "在时限内收集足够鸡蛋，从南侧入口撤离。\n怀疑条满才报警，躲到木箱后可消退。\n青色鸡窝收益低，橙色鸡窝收益高。"
+msgstr "Gather enough eggs and escape through the south exit.\nBreak sight before suspicion fills to avoid an alarm.\nTeal nests are small; amber nests are rich."
+
+msgid "松开 Q 投放，右键取消"
+msgstr "Release Q to throw; right-click cancels"

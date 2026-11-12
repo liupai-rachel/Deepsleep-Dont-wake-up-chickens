@@ -1,4 +1,4 @@
-[gd_scene load_steps=20 format=3 uid="uid://b1a03c6yp4wr2"]
+[gd_scene load_steps=21 format=3 uid="uid://b1a03c6yp4wr2"]
 
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/crate.tscn" id="2"]
@@ -17,6 +17,8 @@
 [ext_resource type="FontFile" uid="uid://drk51hilm2qvy" path="res://assets/fonts/CoopUI.ttf" id="15"]
 
 [ext_resource type="Script" path="res://scenes/coop_backdrop.gd" id="16"]
+
+[ext_resource type="Script" path="res://scenes/feed_aim.gd" id="17"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_wall_horizontal"]
 size = Vector2(936, 24)
@@ -110,14 +112,14 @@ position = Vector2(805, 354)
 patrol_points = [NodePath("../../PatrolRoutes/East/SouthWest"), NodePath("../../PatrolRoutes/East/NorthWest"), NodePath("../../PatrolRoutes/East/NorthEast"), NodePath("../../PatrolRoutes/East/SouthEast")]
 player = NodePath("../../Player")
 patrol_speed = 72.0
-waypoint_pause = 0.85
+waypoint_pause = 1.2
 
 [node name="CenterHen" parent="Chickens" node_paths=PackedStringArray("patrol_points", "player") instance=ExtResource("6")]
 position = Vector2(380, 145)
 patrol_points = [NodePath("../../PatrolRoutes/Center/NorthEast"), NodePath("../../PatrolRoutes/Center/SouthEast"), NodePath("../../PatrolRoutes/Center/SouthWest"), NodePath("../../PatrolRoutes/Center/NorthWest")]
 player = NodePath("../../Player")
 patrol_speed = 60.0
-waypoint_pause = 1.0
+waypoint_pause = 1.3
 
 [node name="Walls" type="StaticBody2D" parent="."]
 collision_layer = 2
@@ -178,21 +180,24 @@ y_sort_enabled = true
 
 [node name="Nest1" parent="Nests" instance=ExtResource("3")]
 position = Vector2(145, 133)
+risky = true
 
 [node name="Nest2" parent="Nests" instance=ExtResource("3")]
 position = Vector2(330, 133)
+risky = true
 
 [node name="Nest3" parent="Nests" instance=ExtResource("3")]
 position = Vector2(610, 133)
+risky = true
 
 [node name="Nest4" parent="Nests" instance=ExtResource("3")]
-position = Vector2(815, 133)
+position = Vector2(715, 435)
 
 [node name="Nest5" parent="Nests" instance=ExtResource("3")]
-position = Vector2(108, 270)
+position = Vector2(260, 435)
 
 [node name="Nest6" parent="Nests" instance=ExtResource("3")]
-position = Vector2(108, 395)
+position = Vector2(108, 285)
 
 [node name="Feed" type="Node2D" parent="."]
 y_sort_enabled = true
@@ -202,7 +207,7 @@ script = ExtResource("8")
 y_sort_enabled = true
 
 [node name="WestFeed" parent="Feed/Supplies" instance=ExtResource("9")]
-position = Vector2(335, 374)
+position = Vector2(390, 380)
 
 [node name="NorthFeed" parent="Feed/Supplies" instance=ExtResource("9")]
 position = Vector2(475, 138)
@@ -270,3 +275,8 @@ polygon = PackedVector2Array(-28, -29, 28, -29, 28, -22, -28, -22)
 [node name="HUD" parent="." instance=ExtResource("4")]
 
 [node name="Audio" parent="." instance=ExtResource("14")]
+
+[node name="FeedAim" type="Node2D" parent="."]
+visible = false
+z_index = 5
+script = ExtResource("17")

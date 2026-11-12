@@ -11,22 +11,29 @@ const DETECTED_CONE := Color(1.0, 0.29, 0.23, 0.36)
 @export var patrol_points: Array[Marker2D] = []
 @export var player: CoopPlayer
 @export_range(1.0, 250.0, 1.0) var patrol_speed := 64.0
-@export_range(0.0, 5.0, 0.05) var waypoint_pause := 0.65
+@export_range(0.0, 5.0, 0.05) var waypoint_pause := 1.1
 @export_range(0.0, 1.0, 0.05) var turn_back_chance := 0.3
 @export_range(0.0, 3.0, 0.05) var pause_variation := 0.3
 @export_range(0.0, 0.6, 0.05) var speed_variation := 0.2
 @export_range(30.0, 720.0, 10.0) var turn_speed_degrees := 180.0
 @export_range(16.0, 600.0, 1.0) var vision_distance := 158.0
 @export_range(10.0, 170.0, 1.0) var vision_angle := 78.0
-@export_range(0.0, 600.0, 1.0) var hearing_distance := 210.0
+@export_range(0.0, 600.0, 1.0) var hearing_distance := 130.0
 @export_range(0.1, 10.0, 0.1) var cluck_cooldown := 2.0
+@export_group("Awareness")
+@export_range(0.2, 3.0, 0.1) var confirmation_seconds := 1.0
+@export_range(0.1, 5.0, 0.1) var suspicion_decay := 1.6
 @export_group("Feed")
 @export_range(20.0, 500.0, 1.0) var bait_sense_distance := 235.0
 @export_range(1.0, 250.0, 1.0) var bait_walk_speed := 100.0
-@export_range(0.5, 10.0, 0.1) var eating_seconds := 2.5
+@export_range(0.5, 10.0, 0.1) var eating_seconds := 6.0
 @export_range(0.1, 1.0, 0.05) var eating_sense_scale := 0.5
 
 var sees_player := false
+var suspicion := 0.0
+var confirmed_player := false
+var _alarm_pending := false
+var _noise_memory := 0.0
 
 var _facing := Vector2.RIGHT
 var _waypoint_index := 0
@@ -44,6 +51,7 @@ var _patrol_rng := RandomNumberGenerator.new()
 @onready var _vision: Polygon2D = $Vision
 @onready var _notice: Label = $Notice
 @onready var _pecking: Label = $Pecking
+@onready var _suspicion_bar: ProgressBar = $Suspicion
 
 
 func set_patrol_seed(seed_value: int) -> void:
@@ -60,6 +68,7 @@ func _physics_process(delta: float) -> void:
 		else:
 			_patrol(delta)
 	_pecking.visible = _eat_left > 0.0
+	_pecking.text = "%ds" % ceili(_eat_left)
 	var action: StringName = &"eat" if _eat_left > 0.0 else (&"alarm" if _cluck_cooldown_left > cluck_cooldown - 0.4 else &"idle")
 	_body.update_pose(_facing, position.distance_squared_to(previous_position) > 0.001, action, delta)
 
@@ -70,16 +79,55 @@ func _physics_process(delta: float) -> void:
 	_vision_ray.from = global_position
 	_update_vision(space, half_angle, sight_range)
 	_set_player_visible(_can_see_player(space, half_angle, sight_range))
+	advance_awareness(delta, sees_player)
 
 
 func hear_search_noise(origin: Vector2) -> bool:
-	if _cluck_cooldown_left > 0.0:
+	if _eat_left > 0.0:
 		return false
 	var hearing_range := hearing_distance * _sense_scale()
 	if global_position.distance_squared_to(origin) > hearing_range * hearing_range:
 		return false
-	_cluck_cooldown_left = cluck_cooldown
+	# Cover blocks nearby search sounds as well as the visual line of sight.
+	var ray := PhysicsRayQueryParameters2D.create(global_position, origin, collision_mask)
+	if not get_world_2d().direct_space_state.intersect_ray(ray).is_empty():
+		return false
+	_noise_memory = 0.85
+	suspicion = minf(1.0, suspicion + 0.2)
+	_confirm_if_ready()
 	return true
+
+
+func advance_awareness(delta: float, visible: bool) -> void:
+	_noise_memory = maxf(0.0, _noise_memory - delta)
+	if _eat_left > 0.0:
+		suspicion = maxf(0.0, suspicion - suspicion_decay * delta)
+		_noise_memory = 0.0
+	elif visible:
+		var search_multiplier := 1.25 if is_instance_valid(player) and player.searching else 1.0
+		suspicion = minf(1.0, suspicion + delta * search_multiplier / confirmation_seconds)
+	elif _noise_memory <= 0.0:
+		suspicion = maxf(0.0, suspicion - suspicion_decay * delta)
+	_confirm_if_ready()
+	_suspicion_bar.value = suspicion
+	_suspicion_bar.visible = suspicion > 0.01 and _eat_left <= 0.0
+	_notice.visible = _suspicion_bar.visible
+	_notice.text = "!" if confirmed_player else "?"
+	_vision.color = Color(0.3, 0.85, 0.8, 0.25) if _eat_left > 0.0 else (DETECTED_CONE if confirmed_player else PATROL_CONE.lerp(Color(1, 0.57, 0.15, 0.5), suspicion))
+
+
+func _confirm_if_ready() -> void:
+	var confirmed := suspicion >= 1.0 and _eat_left <= 0.0
+	if confirmed and not confirmed_player and _cluck_cooldown_left <= 0.0:
+		_alarm_pending = true
+		_cluck_cooldown_left = cluck_cooldown
+	confirmed_player = confirmed
+
+
+func take_alarm() -> bool:
+	var pending := _alarm_pending
+	_alarm_pending = false
+	return pending
 
 
 func _sense_scale() -> float:
@@ -241,6 +289,4 @@ func _set_player_visible(detected: bool) -> void:
 	if detected == sees_player:
 		return
 	sees_player = detected
-	_vision.color = DETECTED_CONE if detected else PATROL_CONE
-	_notice.visible = detected
 	player_visibility_changed.emit(detected)

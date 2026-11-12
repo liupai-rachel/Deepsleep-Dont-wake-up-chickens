@@ -4,11 +4,11 @@
 
 ## About the game
 
-Night Coop is a single-player, top-down stealth game. Sneak into a chicken coop at night and search nests while the hens look away. You have **120 seconds to collect at least six eggs and escape through the green south exit**. One more search might get you the last egg, or give the farmer time to find you.
+Night Coop is a single-player, top-down stealth game. Sneak into a chicken coop at night and search nests while the hens look away. You have **120 seconds to collect at least eight eggs and escape through the south exit**. One more search might get you the last egg, or give the farmer time to find you.
 
-- **Search for eggs.** Each nest hides one to three eggs. Its marker tells you whether it has been searched or emptied. Hold **E** near a nest to take one egg every two seconds. You stay still while searching, and releasing **E** cancels the current search.
-- **Hide and distract.** Three hens patrol the coop, and their vision cones turn with them. Walls and crates block sight, but hens can still hear you search. Tap **E** to pick up feed, then press **Q** to throw it ahead and draw nearby hens away.
-- **Manage alert and escape.** Alert rises when a hen sees you or clucks after hearing a search. At **60** alert, the farmer enters from the north. If he loses sight of you, he checks your last known position. Hide and stop searching to let alert fall. Once you have enough eggs, tap **E** at the south exit. Getting caught or running out of time ends the round.
+- **Choose a route and search.** Teal nests contain 1–2 eggs and take about 1.3 seconds per egg; amber nests contain 3–4 and take about 2.2 seconds per egg. Ranges are visible, exact stock is hidden. Small nests sit near cover; rich nests lie in the northern patrol zone. At least one rich nest is needed to meet the goal. Hold **E** to search; release to cancel unfinished progress.
+- **Hide and distract.** Hens first build a visible suspicion meter; about one second of continuous sight confirms detection. Break sight behind cover to clear suspicion. Cover also blocks search noise. Start with two feed charges; tap **E** to collect more. Hold **Q** and aim with the mouse, release to throw, or right-click to cancel. Red destinations are blocked. Eating distracts a hen for about six seconds and suppresses its alarms.
+- **Manage alert and escape.** Alert rises only after a hen confirms sustained sight or search noise. At **60** alert, the farmer enters from the north. If he loses sight of you, he checks your last known position. Hide and stop searching to let alert fall. Once you have enough eggs, tap **E** at the south exit. Getting caught or running out of time ends the round.
 - **Pixel coop and bilingual UI.** The default authored level combines golden paving, blue night scenery, stacked crate-and-hay cover, and teal-roofed nests. The round seed still drives nest inventories and patrol variation. Disable Layout > Use Fixed Layout to restore seeded layouts. You can switch between Simplified Chinese and English on the start, pause, and results screens.
 
 ## Project architecture
