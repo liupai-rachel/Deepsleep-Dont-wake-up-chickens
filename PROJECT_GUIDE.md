@@ -89,3 +89,5 @@
 角色与道具启用纵向排序，背景保持在下层；默认固定布局便于对照视觉参考调试。
 `hud_frames.gd` 绘制金边 HUD，搜寻进度跟随玩家上方；中英双语、暂停和结算保留。
 英文 HUD 使用 Press Start 2P（`assets/fonts/PressStart2P-OFL.txt`），中文继续使用原有字体。
+
+道具使用 `display_width` 控制宽度，并按图集原比例等比缩放；高度由源区域自动计算，`ground_offset` 保持落地位置。不要独立设置宽高，以免木箱、草垛和木桶变形。

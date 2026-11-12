@@ -15,7 +15,7 @@ polygon = PackedVector2Array(-21, -21, 21, -21, 33, -10, 33, 10, 21, 21, -21, 21
 [node name="Straw" type="Sprite2D" parent="."]
 script = ExtResource("2")
 prop = 0
-display_size = Vector2(70, 82)
+display_width = 70.0
 ground_offset = 23.0
 
 [node name="StatusMark" type="Label" parent="."]

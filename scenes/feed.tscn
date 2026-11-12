@@ -11,7 +11,7 @@ script = ExtResource("1")
 [node name="Art" type="Sprite2D" parent="Bag"]
 script = ExtResource("2")
 prop = 2
-display_size = Vector2(32, 38)
+display_width = 32.0
 ground_offset = 12.0
 
 [node name="Grain" type="Node2D" parent="."]
@@ -20,5 +20,5 @@ visible = false
 [node name="Art" type="Sprite2D" parent="Grain"]
 script = ExtResource("2")
 prop = 3
-display_size = Vector2(29, 19)
+display_width = 29.0
 ground_offset = 9.0

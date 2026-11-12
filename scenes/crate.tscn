@@ -15,5 +15,5 @@ shape = SubResource("RectangleShape2D_crate")
 [node name="Art" type="Sprite2D" parent="."]
 script = ExtResource("1")
 prop = 1
-display_size = Vector2(116, 106)
+display_width = 144.0
 ground_offset = 38.0
