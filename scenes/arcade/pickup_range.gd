@@ -1,10 +1,19 @@
 extends Node2D
 
-var radius := 140.0
-var zoom := 1.0
+var radius := 70.0
+var _surface: GradientTexture2D
+
+func _ready() -> void:
+	var glow := ShaderMaterial.new()
+	glow.shader = preload("res://assets/art/pickup_glow.gdshader")
+	material = glow
+	_surface = GradientTexture2D.new()
+	_surface.width = 2
+	_surface.height = 2
+	var gradient := Gradient.new()
+	gradient.colors = PackedColorArray([Color.WHITE,Color.WHITE])
+	_surface.gradient = gradient
 
 func _draw() -> void:
-	draw_circle(Vector2.ZERO,radius,Color(0.6,1.0,0.9,0.035))
-	for i in range(48):
-		var angle := float(i)*TAU/48
-		draw_arc(Vector2.ZERO,radius,angle,angle+0.055,3,Color(0.65,1.0,0.9,0.55),1.1/zoom)
+	if _surface != null:
+		draw_texture_rect(_surface,Rect2(Vector2(-radius,-radius),Vector2.ONE*radius*2.0),false)

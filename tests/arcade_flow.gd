@@ -40,6 +40,31 @@ func run() -> void:
 	expect(game.ui.overlay.visible and not game.running,"Start menu must be visible before the timer starts")
 	game.begin_round(1)
 	await tick(3)
+	expect(game.round_seconds == 60.0 and game.time_left > 59.5,"A round must start at one minute")
+	expect(game.pickup_radius() == 70.0,"Base pickup diameter must be half the previous size")
+	expect(game.hens.size() == 4,"Stage one must start with four patrolling hens")
+	var movement_origin := game.world.free_point(30,true)
+	for attempt in range(300):
+		if game.world.step_clear(movement_origin,movement_origin+Vector2(0,-90)) and game.world.step_clear(movement_origin,movement_origin+Vector2(0,90)): break
+		movement_origin = game.world.free_point(30,true)
+	game.player.position = movement_origin
+	var art: CoopCharacterArt = game.player.get_node("Art")
+	for direction in ["move_up","move_down"]:
+		game.player.position = movement_origin
+		Input.action_press(direction)
+		await tick(3)
+		var first_frame: AtlasTexture = art._sprite.texture
+		expect(first_frame.atlas == CoopCharacterArt.RUN_ATLAS,"Vertical movement must use actual running frames")
+		expect(first_frame.region.position.y == (491 if direction == "move_up" else 51),"W/S must show the corresponding back/front run")
+		await tick(7)
+		expect(art._sprite.texture.region != first_frame.region,"Leg poses must alternate during vertical movement")
+		game.player.show_feed_toss()
+		await tick(3)
+		expect(art._sprite.texture.atlas == CoopCharacterArt.RUN_ATLAS,"Collecting while running must not freeze the legs")
+		expect(game.player.position.y < movement_origin.y if direction == "move_up" else game.player.position.y > movement_origin.y,"W/S must move the actor as well as animate it")
+		Input.action_release(direction)
+		await tick(2)
+		expect(art._sprite.texture.atlas == CoopCharacterArt.ATLAS,"Stopping must restore the idle pose")
 	game.begin_round(4)
 	expect(game.current_level == 1,"Locked stages must not start")
 	expect(game.eggs.size() >= 20,"The first round must start with plentiful ground eggs")
@@ -49,6 +74,8 @@ func run() -> void:
 	game.player.position = point
 	await tick(8)
 	expect(game.collected == 0,"Walking onto eggs must not auto-collect")
+	game._update_pickup_feedback(point)
+	expect(egg.highlighted,"Hover feedback must highlight a reachable egg without collecting it")
 	await click(game,MOUSE_BUTTON_RIGHT,point)
 	expect(game.collected == 0,"Right click must not pick up eggs")
 	await click(game,MOUSE_BUTTON_LEFT,point)
@@ -64,6 +91,8 @@ func run() -> void:
 	expect(far != null,"The map should contain eggs outside the local pickup ring")
 	if far != null:
 		var before_score := game.score
+		game._update_pickup_feedback(far.position)
+		expect(not far.highlighted,"A distant egg must not show the collectible highlight")
 		expect(not game.collect_at(far.position),"Distant eggs must be rejected")
 		expect(game.score == before_score and game.eggs.has(far),"Rejected pickup must not remove an egg or score")
 	var nest: ArcadeNest = game.nests[0]
@@ -71,6 +100,8 @@ func run() -> void:
 	var distant_stock := nest.stock
 	expect(not game.collect_at(nest.position) and nest.stock == distant_stock,"Distant nests must not dispense eggs")
 	game.player.position = nest.position+Vector2(0,30)
+	game._update_pickup_feedback(nest.position)
+	expect(nest.highlighted,"A nearby stocked nest must show hover feedback")
 	var stock := nest.stock
 	var collected_before := game.collected
 	for i in range(stock): expect(game.collect_at(nest.position),"Each nest click should immediately yield one egg")
@@ -91,6 +122,9 @@ func run() -> void:
 	expect(is_equal_approx(game.time_left,time_before),"Pausing must stop the round timer")
 	expect(not game.collect_at(game.eggs[0].position),"Paused rounds must not collect")
 	game.toggle_pause()
+	game.time_left = 10.1
+	game._process(0.2)
+	expect(game.running and game.ui.time_label.text == "0:10" and game._last_seconds_announced,"The final ten seconds must show a cue while collection remains active")
 	# Settlement is once per completed round; score is independent from currency.
 	game.score = 125
 	game.collected = 80
@@ -116,6 +150,7 @@ func run() -> void:
 		for ground: ArcadeEgg in game.eggs:
 			expect(game.world.is_free(ground.position,12,true),"Eggs must not spawn inside obstacles or nests")
 		if level == 2:
+			expect(game.pickup_radius() == 74.0,"Reach upgrades must preserve the halved radius scale")
 			var boundary_origin := Vector2.ZERO
 			var radius := game.pickup_radius()
 			for attempt in range(300):
@@ -141,7 +176,7 @@ func run() -> void:
 			game.collect_at(gather_point)
 			expect(game.collected >= before+2,"Gather upgrade must collect adjacent eggs from one manual click")
 		if level >= 3:
-			game._process(59.0)
+			game._process(game.round_seconds*0.5-1.0)
 			expect(game.golden_count == 0,"Golden hens should not appear before halfway")
 			game._process(2.0)
 			expect(game.golden_count == 1,"Later stages should introduce a golden hen after halfway")
@@ -158,7 +193,7 @@ func run() -> void:
 				game.collect_at(gold.position)
 				expect(game.score >= old_score+5,"Golden eggs must be worth more")
 		if level == 4:
-			game._process(30.0)
+			game._process(game.round_seconds*0.25)
 			expect(game.golden_count == 2,"Final stage should add a second golden hen later")
 		game.finish_round()
 		await tick(2)
@@ -187,7 +222,10 @@ func run() -> void:
 	game.player.position = cover.get_center()+Vector2(0,80)
 	await tick(4)
 	expect(not guard.sees_player,"Crates must block hen sight")
-	expect(not game.can_collect_point(cover.get_center()-Vector2(0,60)),"Crates must block otherwise nearby pickups")
+	game.player.position = cover.position+Vector2(-20,25)
+	var blocked_point := cover.position+Vector2(25,-20)
+	expect(game.player.position.distance_to(blocked_point) < game.pickup_radius(),"The occlusion check must target a point inside the smaller pickup radius")
+	expect(not game.can_collect_point(blocked_point),"Crates must block otherwise nearby pickups")
 	guard.set_physics_process(false)
 	guard.sees_player = false
 	game.alert.level = 65
@@ -214,5 +252,5 @@ func run() -> void:
 	game.queue_free()
 	await process_frame
 	DirAccess.remove_absolute(SAVE_PATH)
-	if failures == 0: print("PASS: local left-click collection, distance rejection, hen vision and farmer alarms, visible nest stocks, spawning, pause, timeout settlement, saved upgrades, four growing stages and golden hens")
+	if failures == 0: print("PASS: one-minute rounds, four patrol hens, halved pickup reach, up/down run cycles, hover feedback, countdown, local collection, alarms/capture, nest stocks/refills, settlement, upgrades, growing stages and golden hens")
 	quit(1 if failures > 0 else 0)

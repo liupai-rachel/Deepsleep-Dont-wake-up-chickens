@@ -8,11 +8,11 @@ const FARMER := preload("res://scenes/farmer.tscn")
 const HEN_SCRIPT := preload("res://scenes/arcade/hen.gd")
 const RANGE_SCRIPT := preload("res://scenes/arcade/pickup_range.gd")
 const EFFECT := preload("res://scenes/arcade/effect.gd")
-@export_range(10.0,300.0,1.0) var round_seconds := 120.0
+@export_range(10.0,300.0,1.0) var round_seconds := 60.0
 @export var use_fixed_seed := false
 @export var fixed_seed := 7
 @export var guards_enabled := true
-@export_range(60.0,220.0,5.0) var base_pickup_radius := 140.0
+@export_range(30.0,220.0,5.0) var base_pickup_radius := 70.0
 var profile: ArcadeProfile
 var selected_level := 1
 var current_level := 1
@@ -21,7 +21,7 @@ var score := 0
 var collected := 0
 var chain := 0
 var combo_left := 0.0
-var time_left := 120.0
+var time_left := 60.0
 var world: ArcadeWorld
 var player: CoopPlayer
 var ui: ArcadeUI
@@ -39,6 +39,7 @@ var pickup_circle: Node2D
 var _farmer_warning := 0.0
 var _farmer_armed := true
 var _reported_position := Vector2.ZERO
+var _last_seconds_announced := false
 var _rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
@@ -82,6 +83,7 @@ func _buy_upgrade(index: int) -> void:
 	ui.show_menu(profile,selected_level,last_result)
 
 func _build_world(level: int) -> void:
+	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
 	if is_instance_valid(world):
 		remove_child(world)
 		world.queue_free()
@@ -107,7 +109,6 @@ func _build_world(level: int) -> void:
 	pickup_circle = Node2D.new()
 	pickup_circle.set_script(RANGE_SCRIPT)
 	pickup_circle.radius = pickup_radius()
-	pickup_circle.zoom = camera.zoom.x
 	player.add_child(pickup_circle)
 	player.move_child(pickup_circle,0)
 	alert = CoopAlert.new()
@@ -122,7 +123,7 @@ func _build_world(level: int) -> void:
 		nest.refill_speed = pow(0.86,profile.upgrades[2])
 		world.add_child(nest)
 		nests.append(nest)
-	for i in range(2+level): _add_hen(false)
+	for i in range(3+level): _add_hen(false)
 	_spawn_batch(18+level*14)
 
 func begin_round(level: int) -> void:
@@ -140,6 +141,7 @@ func begin_round(level: int) -> void:
 	time_left = round_seconds
 	spawn_left = world.rng.randf_range(0.4,0.9)
 	last_result = {}
+	_last_seconds_announced = false
 	running = true
 	ui.hide_menu()
 	ui.announce("圈内左键捡蛋，注意避开鸡的视野！","Left-click within your ring. Avoid the hens' sight!")
@@ -153,8 +155,10 @@ func _process(delta: float) -> void:
 		return
 	_update_guards(delta)
 	if not running: return
-	for egg in eggs:
-		egg.modulate.a = 1.0 if can_collect_point(egg.position) else 0.68
+	_update_pickup_feedback(get_global_mouse_position())
+	if time_left <= 10.0 and not _last_seconds_announced:
+		_last_seconds_announced = true
+		ui.announce("最后 10 秒，抓紧捡蛋！","10 seconds left. Keep collecting!")
 	combo_left = maxf(0,combo_left-delta)
 	if combo_left == 0: chain = 0
 	spawn_left -= delta
@@ -187,6 +191,31 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func collect_at(point: Vector2) -> bool:
 	if not running or get_tree().paused: return false
+	var target := _pickup_target_at(point)
+	if target is ArcadeEgg:
+		var closest: ArcadeEgg = target
+		var origin := closest.position
+		if not can_collect_point(closest.position):
+			ui.announce("只能捡身边的蛋；被木箱挡住时请绕过去。","Move closer; crates can block a pickup.")
+			return false
+		_collect_egg(closest)
+		if profile.upgrades[0] > 0:
+			var radius: float = (18 + profile.upgrades[0]*12) / camera.zoom.x
+			for other: ArcadeEgg in eggs.duplicate():
+				if other.position.distance_squared_to(origin) <= radius*radius and can_collect_point(other.position): _collect_egg(other)
+		return true
+	if target is ArcadeNest:
+		var nest: ArcadeNest = target
+		if not can_collect_point(nest.position):
+			ui.announce("走近草窝，再左键连续取蛋。","Move closer, then left-click the nest repeatedly.")
+			return false
+		if nest.take():
+			_award(nest.position+Vector2(0,-8),false)
+			return true
+		ui.announce("这处鸡窝正在补货，先捡地面的蛋吧。","Nest refilling. Pick up some ground eggs meanwhile.")
+	return false
+
+func _pickup_target_at(point: Vector2) -> Node2D:
 	var closest: ArcadeEgg
 	var distance := pow(maxf(14,12/camera.zoom.x),2)
 	for egg in eggs:
@@ -196,27 +225,27 @@ func collect_at(point: Vector2) -> bool:
 			distance = candidate
 			closest = egg
 	if closest != null:
-		var origin := closest.position
-		if not can_collect_point(closest.position):
-			ui.announce("只能捡圈内的蛋；被木箱挡住时请绕过去。","Move into range; crates can block a pickup.")
-			return false
-		_collect_egg(closest)
-		if profile.upgrades[0] > 0:
-			var radius: float = (18 + profile.upgrades[0]*12) / camera.zoom.x
-			for other: ArcadeEgg in eggs.duplicate():
-				if other.position.distance_squared_to(origin) <= radius*radius and can_collect_point(other.position): _collect_egg(other)
-		return true
+		return closest
 	for nest in nests:
 		if Rect2(nest.position+Vector2(-58,-54),Vector2(116,78)).has_point(point):
-			if not can_collect_point(nest.position):
-				ui.announce("走近鸡窝，在圈内左键连续取蛋。","Move closer, then left-click the nest repeatedly.")
-				return false
-			if nest.take():
-				_award(nest.position+Vector2(0,-8),false)
-				return true
-			ui.announce("这处鸡窝正在补货，先捡地面的蛋吧。","Nest refilling. Pick up some ground eggs meanwhile.")
-			return false
-	return false
+			return nest
+	return null
+
+func _update_pickup_feedback(point: Vector2) -> void:
+	var target := _pickup_target_at(point)
+	var reachable := is_instance_valid(target) and can_collect_point(target.position)
+	if target is ArcadeNest and target.stock <= 0: reachable = false
+	for egg in eggs:
+		egg.modulate.a = 1.0 if can_collect_point(egg.position) else 0.68
+		egg.highlighted = reachable and egg == target
+	for nest in nests:
+		nest.highlighted = reachable and nest == target
+	Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND if reachable else Input.CURSOR_ARROW)
+
+func _clear_pickup_feedback() -> void:
+	for egg in eggs: egg.highlighted = false
+	for nest in nests: nest.highlighted = false
+	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
 
 func _collect_egg(egg: ArcadeEgg) -> void:
 	if egg.claimed or not eggs.has(egg) or not can_collect_point(egg.position): return
@@ -277,7 +306,7 @@ func _add_hen(gold: bool) -> void:
 	hen.egg_laid.connect(_spawn_egg_at)
 
 func pickup_radius() -> float:
-	return base_pickup_radius + profile.upgrades[0]*8.0
+	return base_pickup_radius + profile.upgrades[0]*4.0
 
 func can_collect_point(point: Vector2) -> bool:
 	if player.position.distance_squared_to(point) > pow(pickup_radius(),2): return false
@@ -360,10 +389,12 @@ func _spawn_egg_at(point: Vector2, gold: bool) -> void:
 func toggle_pause() -> void:
 	if not running: return
 	get_tree().paused = not get_tree().paused
+	_clear_pickup_feedback()
 	if get_tree().paused: ui.show_menu(profile,current_level,{},true)
 	else: ui.hide_menu()
 
 func abandon_round() -> void:
+	_clear_pickup_feedback()
 	get_tree().paused = false
 	running = false
 	world.process_mode = Node.PROCESS_MODE_DISABLED
@@ -371,6 +402,7 @@ func abandon_round() -> void:
 
 func finish_round(caught := false) -> void:
 	if not running: return
+	_clear_pickup_feedback()
 	running = false
 	get_tree().paused = false
 	world.process_mode = Node.PROCESS_MODE_DISABLED

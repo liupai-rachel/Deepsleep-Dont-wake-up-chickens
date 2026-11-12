@@ -2,7 +2,7 @@
 
 [简体中文](README.md)
 
-A pixel-art browser collection game. Gather as many eggs as possible in **120 seconds**, spend earned coins on upgrades, and unlock bigger, denser stages.
+A pixel-art browser collection game. Gather as many eggs as possible in **60 seconds**, spend earned coins on upgrades, and unlock bigger, denser stages.
 
 - **Manual collection:** left-click reachable eggs or repeatedly left-click an open straw nest within the player's pickup ring. Crates block pickups. Eggs fly to the backpack and score instantly. Walking nearby never auto-collects. WASD/arrows move; Esc pauses. Audio is currently disabled.
 - **Continuous supply:** ground eggs respawn in random batches. Nests show their actual 2–6 egg stock and refill after being emptied.
@@ -23,4 +23,6 @@ godot --headless --path . --export-release Web build/web/index.html
 
 Serve Web exports over HTTP(S). Keep build output out of Git. `.codex/setup.sh` installs matching editor/templates for the cloud environment. Generated character/environment art follows the supplied references; font licenses are in `assets/fonts/`.
 
-Hens retain the original occluded sight cones and obstacle-aware patrols, now at speed 82. Being seen raises alert; at 60 the farmer arrives from the north. Capture settles the current score early without unlocking the next stage. Base pickup radius is 140 world units, plus 8 per gather upgrade.
+Hens retain the original occluded sight cones and obstacle-aware patrols, now at speed 82. Being seen raises alert; at 60 the farmer arrives from the north. Capture settles the current score early without unlocking the next stage. Base pickup radius is 70 world units, plus 4 per gather upgrade.
+
+Pacing pass: stage one has four patrolling hens, followed by one additional ordinary hen per stage. The halved pickup diameter uses a soft, hollow pale-yellow halo instead of dashes. Reachable hovered targets highlight; up/down movement uses four-frame front/back runs, including during pickups. The final ten seconds receive a visual cue. Golden hens arrive at 30 seconds, with the second stage-four hen at 45 seconds.

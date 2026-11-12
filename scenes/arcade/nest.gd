@@ -9,6 +9,10 @@ var refill_speed := 1.0
 var rng := RandomNumberGenerator.new()
 var tray: Node2D
 var badge: Label
+var highlighted := false:
+	set(value):
+		highlighted = value
+		modulate = Color(1.14,1.1,1.03) if value else Color.WHITE
 
 func _ready() -> void:
 	var texture := AtlasTexture.new()

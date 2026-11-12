@@ -4,10 +4,10 @@ extends Node2D
 var golden := false
 var claimed := false
 var phase := 0.0
-var glow := 0.0
+var highlighted := false
 
-static func paint(canvas: CanvasItem, center: Vector2, factor: float, gold: bool) -> void:
-	var outline := Color("342333")
+static func paint(canvas: CanvasItem, center: Vector2, factor: float, gold: bool, lit := false) -> void:
+	var outline := Color("fff0a8") if lit else Color("342333")
 	var shell := Color("ffd04c") if gold else Color("f6dbad")
 	var shade := Color("ce801f") if gold else Color("c59872")
 	var light := Color("fff4a6") if gold else Color("fff7dc")
@@ -32,4 +32,4 @@ func _draw() -> void:
 		for i in range(3):
 			var p := Vector2.from_angle(phase + i * TAU / 3) * 12
 			draw_rect(Rect2(p - Vector2.ONE, Vector2(2,2)), Color("ffe78b"))
-	paint(self, Vector2(0,bob), 1.0, golden)
+	paint(self, Vector2(0,bob), 1.0, golden, highlighted)

@@ -3,12 +3,19 @@ extends Node2D
 
 # Shared pixel atlas: four poses per character, one character per row.
 const ATLAS := preload("res://assets/art/characters.png")
+const RUN_ATLAS := preload("res://assets/art/thief_run.png")
+const RUN_REGIONS := [
+	[Rect2(133,51,240,354),Rect2(541,51,240,354),Rect2(987,51,240,354),Rect2(1429,51,240,354)],
+	[Rect2(120,491,240,354),Rect2(532,491,240,354),Rect2(979,491,240,354),Rect2(1420,491,240,354)],
+]
 @export_enum("Thief", "Keeper", "Hen") var character := 0
 @export var sprite_height := 48.0
 
 var _sprite: Sprite2D
 var _frames: Array[AtlasTexture] = []
 var _phase := 0.0
+var _run_clock := 0.0
+var _run_frames: Array[AtlasTexture] = []
 # Tight regions in the generated atlas, aligned to each pose's foot baseline.
 const REGIONS := [
 	[Rect2(125, 60, 168, 264), Rect2(467, 60, 162, 264), Rect2(794, 60, 176, 264), Rect2(1140, 60, 184, 264)],
@@ -25,6 +32,13 @@ func _ready() -> void:
 		frame.atlas = ATLAS
 		frame.region = REGIONS[character][column]
 		_frames.append(frame)
+	if character == 0:
+		for row in RUN_REGIONS:
+			for region in row:
+				var frame := AtlasTexture.new()
+				frame.atlas = RUN_ATLAS
+				frame.region = region
+				_run_frames.append(frame)
 	_pixel_scale = sprite_height / [264.0, 277.0, 187.0][character]
 	_sprite.texture = _frames[0]
 	_sprite.scale = Vector2.ONE * _pixel_scale
@@ -43,6 +57,11 @@ func update_pose(direction: Vector2, moving: bool, action: StringName, delta: fl
 	_sprite.flip_h = direction.x < -0.15
 	_sprite.rotation = 0.0
 	_sprite.modulate = Color.WHITE
+	_sprite.scale = Vector2.ONE * _pixel_scale
+	if character == 0 and moving and absf(direction.y) > absf(direction.x) and action != &"search":
+		_show_vertical_run(direction,delta)
+		return
+	_run_clock = 0.0
 	if character == 2:
 		if action == &"eat":
 			frame = 2
@@ -73,3 +92,12 @@ func update_pose(direction: Vector2, moving: bool, action: StringName, delta: fl
 			lantern.position = Vector2(side * (-1.0 if _sprite.flip_h else 1.0) * sprite_height * 0.32, -sprite_height * 0.28)
 	_sprite.texture = _frames[frame]
 	_sprite.position.y = -_frames[frame].region.size.y * _pixel_scale * 0.5 + bob
+
+func _show_vertical_run(direction: Vector2, delta: float) -> void:
+	_run_clock += delta
+	var index := floori(_run_clock * 10.0) % 4
+	if direction.y < 0.0: index += 4
+	_sprite.texture = _run_frames[index]
+	_sprite.scale = Vector2.ONE * sprite_height / 354.0
+	_sprite.flip_h = false
+	_sprite.position = Vector2(0,-sprite_height*0.5)

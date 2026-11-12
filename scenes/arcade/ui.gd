@@ -24,7 +24,7 @@ var toast: Label
 var combo_bar: ProgressBar
 var danger_label: Label
 var pause_button: Button
-var round_duration := 120
+var round_duration := 60
 var _toast_left := 0.0
 var _profile: ArcadeProfile
 var _selected := 1
@@ -51,7 +51,7 @@ func _ready() -> void:
 	screen.add_child(frames)
 	danger_label = _label(screen,Rect2(205,10,166,30),"",15)
 	score_label = _label(screen,Rect2(47,11,137,31),"",17)
-	time_label = _label(screen,Rect2(832,11,106,31),"2:00",18)
+	time_label = _label(screen,Rect2(832,11,106,31),"1:00",18)
 	combo_label = _label(screen,Rect2(387,14,186,20),"",14)
 	egg_label = _label(screen,Rect2(22,499,140,29),"",15)
 	stage_label = _label(screen,Rect2(785,499,154,29),"",14)
@@ -126,6 +126,7 @@ func update_game(score: int, eggs: int, chain: int, multiplier: int, combo_left:
 	score_label.text = tr2("得分 %d","Score %d") % score
 	egg_label.text = tr2("鸡蛋 %d","Eggs %d") % eggs
 	time_label.text = "%d:%02d" % [ceili(seconds)/60,ceili(seconds)%60]
+	time_label.add_theme_color_override("font_color",Color("ff9d6e") if seconds > 0 and seconds <= 10 else Color("ffe5ad"))
 	combo_label.text = tr2("连捡 %d  ×%d","Chain %d  x%d") % [chain,multiplier] if chain > 0 else tr2("左键开始收集","Left-click to collect")
 	combo_bar.value = combo_left
 	stage_label.text = ("%d · " % level) + (STAGE_EN if language == "en" else STAGE_ZH)[level-1]
