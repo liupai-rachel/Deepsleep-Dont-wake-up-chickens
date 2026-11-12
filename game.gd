@@ -238,7 +238,7 @@ func _update_alert(delta: float, searching: bool) -> void:
 	for chicken: CoopChicken in _chickens:
 		if noise_pulse:
 			chicken.hear_search_noise(_player.global_position)
-		if chicken.confirmed_player:
+		if chicken.sees_player:
 			seeing_hens += 1
 		if chicken.take_alarm():
 			clucks += 1

@@ -94,12 +94,12 @@
 
 ## 潜行玩法参数与验证
 
-母鸡 `confirmation_seconds` 控制确认时间（默认一秒），`suspicion_decay` 控制离开视野后的恢复；
-`hear_search_noise` 需要距离内且没有掩体阻隔。只有 `confirmed_player` 和一次性 `take_alarm()` 进入全局警戒计算。
+母鸡直接通过 `sees_player` 和一次性 `take_alarm()` 报警，没有确认计时。
+`hear_search_noise` 需要距离内且没有掩体阻隔；`cluck_cooldown` 限制连续鸣叫次数。
 `eating_seconds` 默认六秒，啄食期间停止感知报警，饲料被吃完后恢复。
 `feed_field.gd` 共用 `can_place` 校验预览和投放，按住 Q 显示鼠标落点；松开投放、右键或暂停取消，不消耗无效投放。
 `nest.gd` 的 `risky` 切换库存范围和搜寻倍率，`game.gd` 按剩余库存容量保证每局能够完成目标。
 固定地图低收益鸡窝总容量为六枚、目标八枚，需要冒险搜寻北侧鸡窝。具体蛋数始终隐藏。
 
 回归检查：Godot 4.5.1 Standard 执行 `godot --headless --path . --fixed-fps 60 --script tests/gameplay_flow.gd`。
-验证短暂暴露、遮挡与恢复、确认报警、吃粮安全窗口、无效投放、暂停取消、库存预算、真实按键搜寻时长及撤离结算。
+验证即时视听报警、鸣叫冷却、遮挡与警戒恢复、吃粮安全窗口、无效投放、暂停取消、库存预算、真实按键搜寻时长及撤离结算。

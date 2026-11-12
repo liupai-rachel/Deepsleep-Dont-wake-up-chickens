@@ -36,25 +36,31 @@ func run() -> void:
 	hen._facing = Vector2.RIGHT
 	player.position = Vector2(160, 210)
 	hen.set_physics_process(true)
-	await tick(21)
-	expect(hen.suspicion > 0.0 and hen.suspicion < 1.0, "Brief exposure should only raise suspicion")
-	expect(is_zero_approx(game._alert.level), "Brief exposure must not raise global alert")
-	# The same cover must block both vision and search sounds, and allow recovery.
+	await tick(3)
+	expect(hen.sees_player and game._alert.level > 0.0, "First sight must immediately alarm")
+	# Cover must block both vision and search sounds.
 	hen.position = Vector2(260, 285)
 	hen._facing = Vector2.DOWN
 	player.position = Vector2(260, 425)
 	await tick(60)
-	expect(is_zero_approx(hen.suspicion), "Breaking sight should clear suspicion")
+	expect(not hen.sees_player, "Cover must prevent visual detection")
 	expect(not hen.hear_search_noise(player.global_position), "Cover should block search sounds")
-	expect(not hen.confirmed_player, "Hiding before confirmation must avoid an alarm")
+
 	hen.position = Vector2(100, 210)
 	hen._facing = Vector2.RIGHT
 	player.position = Vector2(160, 210)
 	await tick(80)
-	expect(hen.confirmed_player and game._alert.level > 0.0, "Sustained exposure must alarm")
+	expect(hen.sees_player and game._alert.level > 0.0, "Visible player must continue raising alert")
 	player.position = Vector2(100, 430)
 	await tick(420)
 	expect(is_zero_approx(game._alert.level), "Hiding should eventually calm global alert")
+	var alert_before: float = game._alert.level
+	expect(hen.hear_search_noise(Vector2(100, 250)), "Unblocked nearby search sound must immediately alarm")
+	game._update_alert(1.0 / 60.0, false)
+	expect(game._alert.level > alert_before, "Sound alarm must raise global alert immediately")
+	expect(not hen.take_alarm(), "Sound alarm must be consumed only once")
+	expect(not hen.hear_search_noise(Vector2(100, 250)), "Alarm cooldown must prevent repeated sound spikes")
+	await tick(300)
 	# Feed must give a useful window even while the player is standing nearby.
 	var feed = game.get_node("Feed")
 	expect(feed.held_count == 2, "Start with two feed charges")
@@ -65,7 +71,7 @@ func run() -> void:
 	player.position = Vector2(160, 210)
 	await tick(180)
 	expect(hen._eat_left > 2.0, "Feed should distract a hen for substantially longer than one search")
-	expect(not hen.confirmed_player and not hen.hear_search_noise(player.position), "Eating should suppress alarms and hearing")
+	expect(not hen.sees_player and not hen.hear_search_noise(player.position), "Eating should suppress alarms and hearing")
 	expect(is_zero_approx(game._alert.level), "Eating hen should not raise alert")
 	await tick(220)
 	expect(is_zero_approx(hen._eat_left), "Hen must finish eating and recover")
@@ -90,7 +96,7 @@ func run() -> void:
 	# Exercise actual held-input search timing, not just exported multipliers.
 	for other in game.get_node("Chickens").get_children():
 		other.set_physics_process(false)
-		other.confirmed_player = false
+		other.sees_player = false
 		other.hearing_distance = 0.0
 	var safe = game.get_node("Nests/Nest5")
 	player.position = safe.position + Vector2(0, 10)
@@ -122,5 +128,5 @@ func run() -> void:
 	game.queue_free()
 	await process_frame
 	if _failures == 0:
-		print("PASS: suspicion, cover, alarms, calming, six-second feed, blocked throws, pause cancellation, reward budget, timed searches and extraction")
+		print("PASS: immediate sight/sound alarms, cooldown, cover, calming, six-second feed, blocked throws, pause cancellation, reward budget, timed searches and extraction")
 	quit(1 if _failures > 0 else 0)
