@@ -17,6 +17,7 @@ const DETECTED_FEATHERS := Color(1.0, 0.47, 0.43)
 @export_range(0.0, 1.0, 0.05) var turn_back_chance := 0.3
 @export_range(0.0, 3.0, 0.05) var pause_variation := 0.3
 @export_range(0.0, 0.6, 0.05) var speed_variation := 0.2
+@export_range(30.0, 720.0, 10.0) var turn_speed_degrees := 180.0
 @export_range(16.0, 600.0, 1.0) var vision_distance := 158.0
 @export_range(10.0, 170.0, 1.0) var vision_angle := 78.0
 @export_range(0.0, 600.0, 1.0) var hearing_distance := 210.0
@@ -152,8 +153,10 @@ func _return_to_patrol(delta: float) -> void:
 
 func _move_toward_feed_point(offset: Vector2, speed: float, delta: float) -> void:
 	if not offset.is_zero_approx():
-		_facing = offset.normalized()
-		move_and_collide(offset.limit_length(speed * delta))
+		_turn_toward(offset, delta)
+		# Finish sharp turns before stepping into the new direction.
+		var alignment := maxf(0.0, _facing.dot(offset.normalized()))
+		move_and_collide(offset.limit_length(speed * alignment * delta))
 
 
 func _exit_tree() -> void:
@@ -168,21 +171,25 @@ func _patrol(delta: float) -> void:
 		_wait_left -= delta
 		return
 
-	var offset := patrol_points[_waypoint_index].global_position - global_position
-	var distance := offset.length()
-	if distance > 0.0:
-		_facing = offset / distance
-		var speed := patrol_speed * (1.0 + _segment_speed_offset * speed_variation)
-		var step := minf(speed * delta, distance)
-		var collision := move_and_collide(_facing * step)
-		if collision == null and step < distance:
+	var target := patrol_points[_waypoint_index].global_position
+	if global_position.distance_squared_to(target) > 4.0:
+		var offset := CoopNavigation.next_offset(self, target, true)
+		if offset != Vector2.INF:
+			var speed := patrol_speed * (1.0 + _segment_speed_offset * speed_variation)
+			_move_toward_feed_point(offset, speed, delta)
 			return
+		# An unreachable waypoint must not leave a hen walking into cover forever.
 
 	if patrol_points.size() > 2 and _patrol_rng.randf() < turn_back_chance:
 		_patrol_direction = -_patrol_direction
 	_waypoint_index = posmod(_waypoint_index + _patrol_direction, patrol_points.size())
 	_wait_left = maxf(0.0, waypoint_pause + _patrol_rng.randf_range(-pause_variation, pause_variation))
 	_segment_speed_offset = _patrol_rng.randf_range(-1.0, 1.0)
+
+
+func _turn_toward(offset: Vector2, delta: float) -> void:
+	var angle := rotate_toward(_facing.angle(), offset.angle(), deg_to_rad(turn_speed_degrees) * delta)
+	_facing = Vector2.from_angle(angle)
 
 
 func _can_see_player(space: PhysicsDirectSpaceState2D, half_angle: float, sight_range: float) -> bool:
