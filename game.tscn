@@ -76,6 +76,20 @@ position = Vector2(805, 198)
 [node name="SouthEast" type="Marker2D" parent="PatrolRoutes/East"]
 position = Vector2(805, 354)
 
+[node name="Center" type="Node2D" parent="PatrolRoutes"]
+
+[node name="NorthEast" type="Marker2D" parent="PatrolRoutes/Center"]
+position = Vector2(580, 145)
+
+[node name="SouthEast" type="Marker2D" parent="PatrolRoutes/Center"]
+position = Vector2(580, 285)
+
+[node name="SouthWest" type="Marker2D" parent="PatrolRoutes/Center"]
+position = Vector2(380, 285)
+
+[node name="NorthWest" type="Marker2D" parent="PatrolRoutes/Center"]
+position = Vector2(380, 145)
+
 [node name="Chickens" type="Node2D" parent="."]
 
 [node name="WestHen" parent="Chickens" node_paths=PackedStringArray("patrol_points", "player") instance=ExtResource("6")]
@@ -89,6 +103,13 @@ patrol_points = [NodePath("../../PatrolRoutes/East/SouthWest"), NodePath("../../
 player = NodePath("../../Player")
 patrol_speed = 72.0
 waypoint_pause = 0.85
+
+[node name="CenterHen" parent="Chickens" node_paths=PackedStringArray("patrol_points", "player") instance=ExtResource("6")]
+position = Vector2(380, 145)
+patrol_points = [NodePath("../../PatrolRoutes/Center/NorthEast"), NodePath("../../PatrolRoutes/Center/SouthEast"), NodePath("../../PatrolRoutes/Center/SouthWest"), NodePath("../../PatrolRoutes/Center/NorthWest")]
+player = NodePath("../../Player")
+patrol_speed = 60.0
+waypoint_pause = 1.0
 
 [node name="Walls" type="StaticBody2D" parent="."]
 collision_layer = 2

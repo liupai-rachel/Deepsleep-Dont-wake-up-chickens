@@ -110,7 +110,7 @@ func _physics_process(_delta: float) -> void:
 
 
 func _generate(rng: RandomNumberGenerator) -> Plan:
-	if _crates.size() != 3 or _hens.size() != 2:
+	if _crates.size() != 3 or _hens.is_empty():
 		return null
 	for hen: CoopChicken in _hens:
 		if hen.patrol_points.size() != 4:
@@ -209,7 +209,7 @@ func _reachable_cells(start: Vector2i, solids: Array[Rect2]) -> Dictionary:
 
 func _pick_patrol(rng: RandomNumberGenerator, side: int, vision_range: float, reachable: Dictionary, solids: Array[Rect2]) -> PackedVector2Array:
 	var routes: Array[PackedVector2Array] = []
-	var first_column := 0 if side == 0 else 9
+	var first_column := 0 if side == 0 else (9 if side == 1 else 4)
 	for column in range(first_column, first_column + 4):
 		for row in range(5):
 			for height in [1, 2]:
