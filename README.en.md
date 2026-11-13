@@ -8,7 +8,7 @@ A pixel-art browser collection game. Gather as many eggs as possible in **60 sec
 - **Fair starts and patrols:** the first three seconds protect the player from hen sight, clucks, alert gains and capture. Hens start in all four quadrants and repeatedly shuffle global destinations, with navigation around cover and recovery from blocked routes.
 - **Continuous supply:** ground eggs respawn in random batches. Nests show their actual 2–6 egg stock and refill after being emptied.
 - **Chains:** collect within 2.2 seconds to keep a chain. Every 12 pickups increases the multiplier, up to four times. A broken chain never deducts earned points. Timeout settles the run, without a fixed target or exit requirement.
-- **Four stages:** finish a run to unlock the next. World dimensions scale by 1, 1.2, 1.4 and 1.6; cover, nests and ground eggs become denser. The camera zooms uniformly while eggs retain a minimum clickable size.
+- **Explorable stages:** finish a run to unlock the next. A 1920×1280 farm grows by 1, 1.2, 1.4 and 1.6, with 12–28 orchard, garden, coop and storage plots connected by winding lanes. A close camera smoothly follows the player rather than fitting the whole map.
 - **Golden hens:** stages 3–4 introduce one halfway through; stage 4 adds another later. Golden eggs have a base value of five points instead of one.
 - **Persistent growth:** five points earn one coin. Upgrade gather radius, bonus egg chance and nest refill, each up to five levels. High scores are independent from currency. Progress is stored in the current browser, without cross-device synchronization.
 
@@ -29,3 +29,5 @@ Hens retain the original occluded sight cones and obstacle-aware patrols, now at
 Pacing pass: stage one has four patrolling hens, followed by one additional ordinary hen per stage. The halved pickup diameter uses a soft, hollow pale-yellow halo instead of dashes. Reachable hovered targets highlight; up/down movement uses four-frame front/back runs, including during pickups. The final ten seconds receive a visual cue. Golden hens arrive at 30 seconds, with the second stage-four hen at 45 seconds.
 
 Combo feedback follows the player rather than occupying the top HUD. Every fifth pickup triggers a short scaling pop, golden sparks and encouragement. Future scattered powerups are designed in [ITEM_DESIGN.md](ITEM_DESIGN.md); they are not implemented yet.
+
+Round trees, firs, hedges, grass, flowers and vegetable beds add scenery. Solid trunks/beds/hedges block movement and sight; canopies fade when covering the player. Egg supply scales with world area, and a nest is placed near the entrance. The 60-second timer, three-second start protection and manual local pickup rules remain.

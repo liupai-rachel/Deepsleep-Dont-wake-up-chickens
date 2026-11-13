@@ -30,7 +30,6 @@ func _ready() -> void:
 	add_child(art)
 	tray = Node2D.new()
 	tray.draw.connect(_draw_stock)
-	tray.z_index = 1
 	add_child(tray)
 	# The lower straw lip is drawn again in front of the eggs for real occlusion.
 	var front := Sprite2D.new()
@@ -38,7 +37,6 @@ func _ready() -> void:
 	front.scale = art.scale
 	front.position = art.position
 	front.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	front.z_index = 2
 	var foreground := ShaderMaterial.new()
 	foreground.shader = preload("res://assets/art/nest_front.gdshader")
 	foreground.set_shader_parameter("front_start",(NEST_REGION.position.y+NEST_REGION.size.y*0.61)/STRAW.get_height())

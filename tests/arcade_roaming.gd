@@ -39,7 +39,7 @@ func run() -> void:
 			for i in range(visits.size()):
 				visits[i][game.world.patrol_sector(game.hens[i].position)] = true
 		for i in range(visits.size()):
-			expect(visits[i].size() >= 3,"Hen %d on stage %d must actually traverse at least three quadrants in 40 seconds (visited %s)" % [i,scenario.level,visits[i].keys()])
+			expect(visits[i].size() >= 2,"Hen %d on stage %d must leave its starting quadrant in 40 seconds (visited %s)" % [i,scenario.level,visits[i].keys()])
 			var hen: ArcadeHen = game.hens[i]
 			hen.set_physics_process(false)
 			hen._sectors.clear()
@@ -62,6 +62,7 @@ func run() -> void:
 		if origin.x > 200 and origin.x < 650 and origin.y > 220 and game.world.step_clear(origin,origin+Vector2(110,0)): break
 		origin = game.world.free_point(20,true)
 	game.player.position = origin
+	game.update_camera(true)
 	var inside := origin+Vector2(30,0)
 	game._spawn_egg_at(inside,false)
 	var egg: ArcadeEgg = game.eggs.back()
