@@ -22,6 +22,9 @@ var stage_label: Label
 var hint: Label
 var toast: Label
 var combo_bar: ProgressBar
+var combo_anchor: Control
+var combo_cheer: Label
+var protection_label: Label
 var danger_label: Label
 var pause_button: Button
 var round_duration := 60
@@ -31,6 +34,10 @@ var _selected := 1
 var _result := {}
 var _paused := false
 var _running := false
+var _current_chain := 0
+var _current_multiplier := 1
+var _combo_pop_age := 99.0
+var _cheer_text := ""
 
 func tr2(zh: String, en: String) -> String:
 	return en if language == "en" else zh
@@ -47,26 +54,42 @@ func _ready() -> void:
 	add_child(screen)
 	var frames := Control.new()
 	frames.set_script(preload("res://scenes/hud_frames.gd"))
+	frames.set("show_combo_frame",false)
 	frames.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	screen.add_child(frames)
 	danger_label = _label(screen,Rect2(205,10,166,30),"",15)
 	score_label = _label(screen,Rect2(47,11,137,31),"",17)
 	time_label = _label(screen,Rect2(832,11,106,31),"1:00",18)
-	combo_label = _label(screen,Rect2(387,14,186,20),"",14)
+	combo_anchor = Control.new()
+	combo_anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	screen.add_child(combo_anchor)
+	combo_anchor.draw.connect(_draw_combo_sparkles)
+	combo_label = _label(combo_anchor,Rect2(-100,-25,200,30),"",22)
+	combo_label.pivot_offset = Vector2(100,15)
+	combo_label.add_theme_color_override("font_outline_color",Color("172033"))
+	combo_label.add_theme_constant_override("outline_size",5)
+	combo_cheer = _label(combo_anchor,Rect2(-100,12,200,24),"",14)
+	combo_cheer.add_theme_color_override("font_outline_color",Color("172033"))
+	combo_cheer.add_theme_constant_override("outline_size",4)
+	protection_label = _label(screen,Rect2(0,0,150,25),"",14)
+	protection_label.add_theme_color_override("font_color",Color("b8f2ff"))
+	protection_label.add_theme_color_override("font_outline_color",Color("172033"))
+	protection_label.add_theme_constant_override("outline_size",4)
+	protection_label.hide()
 	egg_label = _label(screen,Rect2(22,499,140,29),"",15)
 	stage_label = _label(screen,Rect2(785,499,154,29),"",14)
 	hint = _label(screen,Rect2(231,499,500,29),"",14)
 	combo_bar = ProgressBar.new()
-	combo_bar.position = Vector2(385,38)
-	combo_bar.size = Vector2(190,5)
+	combo_bar.position = Vector2(-45,7)
+	combo_bar.size = Vector2(90,4)
 	combo_bar.max_value = 2.2
 	combo_bar.show_percentage = false
 	combo_bar.add_theme_font_size_override("font_size",1)
 	combo_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	combo_bar.add_theme_stylebox_override("fill",_style(Color("efba55"),Color("efba55"),0))
 	combo_bar.add_theme_stylebox_override("background",_style(Color("0c1326"),Color("453520"),0))
-	screen.add_child(combo_bar)
-	combo_bar.size = Vector2(190,5)
+	combo_anchor.add_child(combo_bar)
+	combo_bar.size = Vector2(90,4)
 	toast = _label(screen,Rect2(200,63,560,30),"",17)
 	toast.add_theme_color_override("font_outline_color",Color("172033"))
 	toast.add_theme_constant_override("outline_size",4)
@@ -117,6 +140,32 @@ func _button(parent: Node, rect: Rect2, text: String, callback: Callable) -> But
 func _process(delta: float) -> void:
 	_toast_left = maxf(0.0,_toast_left-delta)
 	toast.visible = _toast_left > 0.0 and not overlay.visible
+	if not get_tree().paused: _combo_pop_age += delta
+	combo_anchor.visible = _current_chain >= 2 and not overlay.visible
+	if overlay.visible: protection_label.hide()
+	var pop := _combo_pop_age
+	var factor := lerpf(0.65,1.25,pop/0.08) if pop < 0.08 else 1.0+0.25*exp(-12.0*(pop-0.08))*cos((pop-0.08)*18.0)
+	combo_label.scale = Vector2.ONE*factor
+	combo_label.add_theme_color_override("font_color",Color("fff2ac") if pop < 0.8 else Color("ffe5ad"))
+	combo_cheer.text = _cheer_text if pop < 0.85 else (tr2("得分 ×%d","Score ×%d") % _current_multiplier if _current_multiplier > 1 else "")
+	combo_anchor.queue_redraw()
+
+func _draw_combo_sparkles() -> void:
+	if _combo_pop_age > 0.55: return
+	var age := _combo_pop_age
+	var color := Color(1.0,0.88,0.44,1.0-age/0.55)
+	for i in range(8):
+		var direction := Vector2.from_angle(i*TAU/8.0)
+		var point := Vector2(direction.x*(72+age*32),direction.y*(25+age*16)-10)
+		combo_anchor.draw_line(point,point+direction*5,color,2)
+
+func update_actor_feedback(point: Vector2, body_height: float, protection_left: float) -> void:
+	var caption_y := point.y-body_height-42
+	if caption_y < 100: caption_y = point.y+42
+	combo_anchor.position = Vector2(clampf(point.x,125,835),clampf(caption_y,100,440))
+	protection_label.position = Vector2(clampf(point.x-75,15,795),clampf(point.y+8,80,467))
+	protection_label.text = tr2("开局保护 %ds","Protected %ds") % ceili(protection_left)
+	protection_label.visible = protection_left > 0 and not overlay.visible
 
 func announce(zh: String, en: String) -> void:
 	toast.text = tr2(zh,en)
@@ -127,7 +176,13 @@ func update_game(score: int, eggs: int, chain: int, multiplier: int, combo_left:
 	egg_label.text = tr2("鸡蛋 %d","Eggs %d") % eggs
 	time_label.text = "%d:%02d" % [ceili(seconds)/60,ceili(seconds)%60]
 	time_label.add_theme_color_override("font_color",Color("ff9d6e") if seconds > 0 and seconds <= 10 else Color("ffe5ad"))
-	combo_label.text = tr2("连捡 %d  ×%d","Chain %d  x%d") % [chain,multiplier] if chain > 0 else tr2("左键开始收集","Left-click to collect")
+	if chain > _current_chain and chain >= 5 and chain%5 == 0:
+		_combo_pop_age = 0.0
+		_cheer_text = tr2("漂亮！","NICE!") if chain < 10 else (tr2("继续冲！","KEEP GOING!") if chain < 20 else tr2("停不下来！","UNSTOPPABLE!"))
+	_current_chain = chain
+	_current_multiplier = multiplier
+	combo_label.text = tr2("连击 ×%d","COMBO ×%d") % chain
+	combo_anchor.visible = chain >= 2 and not overlay.visible
 	combo_bar.value = combo_left
 	stage_label.text = ("%d · " % level) + (STAGE_EN if language == "en" else STAGE_ZH)[level-1]
 	hint.text = tr2("左键捡圈内蛋 / 连点草窝　 WASD 移动","Left-click nearby eggs / nests   WASD move")
@@ -142,6 +197,8 @@ func show_menu(profile: ArcadeProfile, selected: int, result := {}, paused := fa
 		overlay.remove_child(child)
 		child.queue_free()
 	overlay.show()
+	combo_anchor.hide()
+	protection_label.hide()
 	pause_button.hide()
 	var panel := Panel.new()
 	panel.position = Vector2(102,42)
@@ -152,7 +209,7 @@ func show_menu(profile: ArcadeProfile, selected: int, result := {}, paused := fa
 	if paused: title = tr2("休息一下","PAUSED")
 	elif not result.is_empty(): title = tr2("被农夫抓住 · 提前结算","CAUGHT · RUN ENDED") if result.get("caught",false) else tr2("本局收获","ROUND COMPLETE")
 	_label(panel,Rect2(20,14,716,41),title,28 if language == "zh" else 25)
-	var summary := tr2("左键点击蛋或鸡窝，鸡蛋立即飞入背包；只能拾取圈内目标。","Left-click an egg or nest to collect. Only eggs within your pickup ring can be collected.")
+	var summary := tr2("左键点蛋附近即可捡取，走近草窝可以连续取蛋。","Left-click near an egg to collect; move close to nests for repeated pickups.")
 	if not result.is_empty():
 		summary = tr2("得分 %d　鸡蛋 %d　奖励 %d 币　%s","Score %d   Eggs %d   +%d coins   %s") % [result.score,result.get("eggs",0),result.reward,tr2("新纪录！","NEW BEST!") if result.record else ""]
 	_label(panel,Rect2(15,60,726,28),summary,15)
@@ -177,7 +234,7 @@ func show_menu(profile: ArcadeProfile, selected: int, result := {}, paused := fa
 		var text := tr2("已满级","MAX LEVEL") if price < 0 else tr2("升级 · %d 币","Upgrade · %d coins") % price
 		var button := _button(panel,Rect2(30+i*240,274,216,35),text,func(): upgrade_requested.emit(index))
 		button.disabled = paused or price < 0 or profile.coins < price
-	var guide := tr2("WASD 移动 · 圈内左键捡蛋 · Esc 暂停\n躲开鸡的扇形视野；警戒过高会引来农夫。","WASD move · Left-click within your ring · Esc pause\nAvoid hen sight cones. High alert brings the farmer.")
+	var guide := tr2("WASD 移动 · 左键捡附近蛋 · Esc 暂停\n开局保护 3 秒；躲开鸡的视野，警戒过高会引来农夫。","WASD move · Left-click nearby eggs · Esc pause\n3-second start protection. Avoid hen sight; high alert brings the farmer.")
 	_label(panel,Rect2(18,319,720,43),guide,14)
 	if not profile.saved:
 		_label(panel,Rect2(18,361,720,20),tr2("当前浏览器无法保存进度，关闭后升级可能丢失。","Storage is unavailable; upgrades may be lost when this tab closes."),12)

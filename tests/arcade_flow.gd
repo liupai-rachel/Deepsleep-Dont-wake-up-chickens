@@ -81,11 +81,12 @@ func run() -> void:
 	await click(game,MOUSE_BUTTON_LEFT,point)
 	expect(game.collected == 1 and game.score == 1,"Nearby left click must immediately collect and score")
 	var unchanged := game.score
-	game.collect_at(point)
-	expect(game.score == unchanged,"A removed egg cannot be collected again")
+	if game._pickup_target_at(point) == null:
+		game.collect_at(point)
+		expect(game.score == unchanged,"An empty target cannot yield another egg")
 	var far: ArcadeEgg
 	for candidate in game.eggs:
-		if game.player.position.distance_to(candidate.position) > game.pickup_radius()+20:
+		if game.player.position.distance_to(candidate.position) > game.pickup_radius()+60/game.camera.zoom.x:
 			far = candidate
 			break
 	expect(far != null,"The map should contain eggs outside the local pickup ring")
@@ -203,7 +204,7 @@ func run() -> void:
 	await tick(5)
 	for other in game.hens: other.set_physics_process(false)
 	var guard: ArcadeHen = game.hens[0]
-	guard.patrol_points.clear()
+	guard.roaming_enabled = false
 	var origin := game.world.free_point(30,true)
 	for attempt in range(200):
 		if game.world.step_clear(origin,origin+Vector2(80,0)): break
@@ -213,6 +214,15 @@ func run() -> void:
 	game.player.position = origin+Vector2(80,0)
 	guard.set_physics_process(true)
 	await tick(4)
+	expect(game.player.invulnerable and not guard.sees_player and not guard.take_alarm() and game.alert.level == 0,"Opening protection must suppress sight, clucks and alert")
+	var grace_left := game.protection_left
+	game.toggle_pause()
+	await tick(10)
+	expect(is_equal_approx(game.protection_left,grace_left),"Pausing must not consume opening protection")
+	game.toggle_pause()
+	await tick(155)
+	expect(game.player.invulnerable and game.alert.level == 0,"The opening grace must last the full three seconds")
+	await tick(30)
 	expect(guard.sees_player and game.alert.level > 0,"Patrolling hens must see the player and raise global alert")
 	expect(guard.get_node("Vision").polygon.size() > 3,"Hen must retain its occluded vision fan")
 	expect(guard.patrol_speed > 64.0,"Hen patrol should be slightly faster than the old baseline")

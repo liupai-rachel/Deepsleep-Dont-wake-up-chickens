@@ -83,6 +83,19 @@ func step_clear(from: Vector2, to: Vector2) -> bool:
 		if not is_free(from.lerp(to,float(step)/6),14,true): return false
 	return true
 
+func patrol_sector(point: Vector2) -> int:
+	return (1 if point.x >= bounds.get_center().x else 0) + (2 if point.y >= bounds.get_center().y else 0)
+
+func patrol_point(sector: int) -> Vector2:
+	var area := Rect2(bounds.position+Vector2(sector%2,sector/2)*bounds.size*0.5,bounds.size*0.5).grow(-26)
+	for attempt in range(80):
+		var point := Vector2(rng.randf_range(area.position.x,area.end.x),rng.randf_range(area.position.y,area.end.y))
+		if is_free(point,20,true): return point
+	for y in range(int(area.position.y),int(area.end.y),20):
+		for x in range(int(area.position.x),int(area.end.x),20):
+			if is_free(Vector2(x,y),20,true): return Vector2(x,y)
+	return Vector2.INF
+
 func _draw() -> void:
 	if floor_texture == null: return
 	for y in range(int(bounds.position.y),int(bounds.end.y),96):

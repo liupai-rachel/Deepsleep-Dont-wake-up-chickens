@@ -40,6 +40,7 @@ var _farmer_warning := 0.0
 var _farmer_armed := true
 var _reported_position := Vector2.ZERO
 var _last_seconds_announced := false
+var protection_left := 0.0
 var _rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
@@ -93,6 +94,7 @@ func _build_world(level: int) -> void:
 	farmer = null
 	_farmer_warning = 0.0
 	_farmer_armed = true
+	protection_left = 0.0
 	world = ArcadeWorld.new()
 	world.name = "World"
 	world.process_mode = Node.PROCESS_MODE_PAUSABLE
@@ -139,12 +141,14 @@ func begin_round(level: int) -> void:
 	combo_left = 0.0
 	golden_count = 0
 	time_left = round_seconds
+	protection_left = 3.0
+	player.invulnerable = true
 	spawn_left = world.rng.randf_range(0.4,0.9)
 	last_result = {}
 	_last_seconds_announced = false
 	running = true
 	ui.hide_menu()
-	ui.announce("圈内左键捡蛋，注意避开鸡的视野！","Left-click within your ring. Avoid the hens' sight!")
+	ui.announce("开局保护 3 秒，先移动到合适的位置！","3 seconds of protection. Find a good starting position!")
 	_update_hud()
 
 func _process(delta: float) -> void:
@@ -153,6 +157,8 @@ func _process(delta: float) -> void:
 	if time_left <= 0:
 		finish_round()
 		return
+	protection_left = maxf(0.0,protection_left-delta)
+	player.invulnerable = protection_left > 0.0
 	_update_guards(delta)
 	if not running: return
 	_update_pickup_feedback(get_global_mouse_position())
@@ -217,13 +223,19 @@ func collect_at(point: Vector2) -> bool:
 
 func _pickup_target_at(point: Vector2) -> Node2D:
 	var closest: ArcadeEgg
-	var distance := pow(maxf(14,12/camera.zoom.x),2)
+	var reachable: ArcadeEgg
+	var distance := pow(24.0/camera.zoom.x,2)
+	var reachable_distance := distance
 	for egg in eggs:
 		if egg.claimed: continue
 		var candidate := egg.position.distance_squared_to(point)
 		if candidate <= distance:
 			distance = candidate
 			closest = egg
+		if candidate <= reachable_distance and can_collect_point(egg.position):
+			reachable_distance = candidate
+			reachable = egg
+	if reachable != null: return reachable
 	if closest != null:
 		return closest
 	for nest in nests:
@@ -276,7 +288,8 @@ func multiplier() -> int:
 	return 1 + mini(3,chain/12)
 
 func _add_hen(gold: bool) -> void:
-	var point := world.free_point(24,true)
+	var point := world.patrol_point(hens.size()%4)
+	if point == Vector2.INF: point = world.free_point(24,true)
 	if point == Vector2.INF: return
 	var node = CHICKEN.instantiate()
 	node.set_script(HEN_SCRIPT)
@@ -289,18 +302,6 @@ func _add_hen(gold: bool) -> void:
 	hen.waypoint_pause = 0.6
 	hen.vision_distance = 175.0
 	hen.set_patrol_seed(world.rng.randi())
-	# Each hen keeps a route rather than simply drifting without perception.
-	for index in range(4):
-		var marker := Marker2D.new()
-		var target := point
-		for attempt in range(40):
-			var candidate := point + Vector2(world.rng.randf_range(-145,145),world.rng.randf_range(-115,115))
-			if world.is_free(candidate,20,true):
-				target = candidate
-				break
-		marker.position = target
-		world.add_child(marker)
-		hen.patrol_points.append(marker)
 	world.add_child(hen)
 	hens.append(hen)
 	hen.egg_laid.connect(_spawn_egg_at)
@@ -316,6 +317,10 @@ func can_collect_point(point: Vector2) -> bool:
 
 func _update_guards(delta: float) -> void:
 	if not guards_enabled: return
+	if player.invulnerable:
+		for hen in hens: hen.take_alarm()
+		ui.update_danger(alert.level,false,false)
+		return
 	var seen := 0
 	var clucks := 0
 	for hen in hens:
@@ -381,7 +386,7 @@ func _spawn_egg_at(point: Vector2, gold: bool) -> void:
 	egg.position = point
 	egg.golden = gold
 	egg.phase = world.rng.randf()*TAU
-	egg.scale = Vector2.ONE * maxf(1.0,0.85/camera.zoom.x)
+	egg.scale = Vector2.ONE * maxf(1.2,1.05/camera.zoom.x)
 	egg.z_index = 1
 	world.add_child(egg)
 	eggs.append(egg)
@@ -414,4 +419,6 @@ func finish_round(caught := false) -> void:
 	_update_hud()
 
 func _update_hud() -> void:
-	if is_instance_valid(ui): ui.update_game(score,collected,chain,multiplier(),combo_left,time_left,current_level)
+	if is_instance_valid(ui):
+		ui.update_game(score,collected,chain,multiplier(),combo_left,time_left,current_level)
+		if is_instance_valid(player): ui.update_actor_feedback(get_canvas_transform()*player.position,60.0*camera.zoom.x,protection_left)

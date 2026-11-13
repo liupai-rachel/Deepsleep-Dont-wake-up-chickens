@@ -92,6 +92,8 @@ func hear_search_noise(origin: Vector2) -> bool:
 
 
 func _request_alarm() -> bool:
+	if is_instance_valid(player) and player.invulnerable:
+		return false
 	if _cluck_cooldown_left > 0.0:
 		return false
 	_alarm_pending = true
@@ -207,7 +209,7 @@ func _turn_toward(offset: Vector2, delta: float) -> void:
 
 
 func _can_see_player(space: PhysicsDirectSpaceState2D, half_angle: float, sight_range: float) -> bool:
-	if not is_instance_valid(player):
+	if not is_instance_valid(player) or player.invulnerable:
 		return false
 	var offset := player.global_position - global_position
 	if offset.length_squared() > sight_range * sight_range:

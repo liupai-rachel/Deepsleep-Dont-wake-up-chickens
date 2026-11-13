@@ -3,6 +3,7 @@ extends Control
 const NAVY := Color("0b1225")
 const GOLD := Color("e7be66")
 const EDGE := Color("554124")
+@export var show_combo_frame := true
 
 func _draw() -> void:
 	for rect in [Rect2(14, 9, 177, 35), Rect2(799, 9, 147, 35), Rect2(14, 497, 157, 33), Rect2(221, 497, 518, 33), Rect2(779, 497, 167, 33)]:
@@ -17,5 +18,6 @@ func _draw() -> void:
 	draw_rect(Rect2(29,21,4,8), Color("fff0c8"))
 	draw_circle(Vector2(815,26),8,Color("f5d776"))
 	draw_circle(Vector2(819,22),7,NAVY)
-	draw_rect(Rect2(381,12,198,24),NAVY)
-	draw_rect(Rect2(381,12,198,24),GOLD,false,2)
+	if show_combo_frame:
+		draw_rect(Rect2(381,12,198,24),NAVY)
+		draw_rect(Rect2(381,12,198,24),GOLD,false,2)
