@@ -9,6 +9,7 @@ var refill_speed := 1.0
 var rng := RandomNumberGenerator.new()
 var tray: Node2D
 var badge: Label
+var theme_index := 0
 var highlighted := false:
 	set(value):
 		highlighted = value
@@ -82,4 +83,4 @@ func _draw_stock() -> void:
 		for i in range(count):
 			var x := (float(i)-float(count-1)*0.5)*19.0
 			var y := -23.0 if stock <= 3 else (-29.0 if row == 0 else -18.0)
-			ArcadeEgg.paint(tray,Vector2(x,y),0.85,false)
+			ArcadeEgg.paint_resource(tray,Vector2(x,y),0.85,false,theme_index)

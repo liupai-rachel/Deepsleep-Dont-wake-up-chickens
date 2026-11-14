@@ -5,6 +5,19 @@ var golden := false
 var claimed := false
 var phase := 0.0
 var highlighted := false
+var theme_index := 0
+
+static func paint_resource(canvas: CanvasItem, center: Vector2, factor: float, gold: bool, kind: int, lit := false) -> void:
+	if kind == 0:
+		paint(canvas,center,factor,gold,lit)
+		return
+	var texture := ThemeSprites.item(kind)
+	var size := texture.region.size*(19.0*factor/texture.region.size.y)
+	var tint := Color(1.5,1.25,0.5) if gold else Color.WHITE
+	if lit:
+		tint *= Color(1.2,1.15,1.0)
+		canvas.draw_rect(Rect2(center+Vector2(-11,-10)*factor,Vector2(3,3)*factor),Color("fff0a8"))
+	canvas.draw_texture_rect(texture,Rect2(center-size*0.5,size),false,tint)
 
 static func paint(canvas: CanvasItem, center: Vector2, factor: float, gold: bool, lit := false) -> void:
 	var outline := Color("fff0a8") if lit else Color("342333")
@@ -32,4 +45,4 @@ func _draw() -> void:
 		for i in range(3):
 			var p := Vector2.from_angle(phase + i * TAU / 3) * 12
 			draw_rect(Rect2(p - Vector2.ONE, Vector2(2,2)), Color("ffe78b"))
-	paint(self, Vector2(0,bob), 1.0, golden, highlighted)
+	paint_resource(self,Vector2(0,bob),1.0,golden,theme_index,highlighted)

@@ -26,6 +26,7 @@ func run() -> void:
 	await tick(3)
 	for scenario in [{"level":1,"seed":7},{"level":4,"seed":17}]:
 		game.fixed_seed = scenario.seed
+		game.profile.unlocked = scenario.level
 		game.begin_round(scenario.level)
 		await tick(4)
 		var starts := {}
@@ -52,6 +53,7 @@ func run() -> void:
 			expect(destinations.size() == 4,"Every shuffled patrol tour must sample the whole map")
 		print("Stage ",scenario.level," actual quadrant visits: ",visits)
 		game.abandon_round()
+	game.profile.unlocked = 1
 	game.begin_round(1)
 	await tick(3)
 	for hen in game.hens: hen.set_physics_process(false)

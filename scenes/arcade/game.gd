@@ -8,6 +8,7 @@ const FARMER := preload("res://scenes/farmer.tscn")
 const HEN_SCRIPT := preload("res://scenes/arcade/hen.gd")
 const RANGE_SCRIPT := preload("res://scenes/arcade/pickup_range.gd")
 const EFFECT := preload("res://scenes/arcade/effect.gd")
+const ANIMAL_ART := preload("res://scenes/arcade/animal_art.gd")
 @export_range(10.0,300.0,1.0) var round_seconds := 60.0
 @export var use_fixed_seed := false
 @export var fixed_seed := 7
@@ -15,6 +16,9 @@ const EFFECT := preload("res://scenes/arcade/effect.gd")
 @export_range(30.0,220.0,5.0) var base_pickup_radius := 70.0
 var profile: ArcadeProfile
 var selected_level := 1
+var selected_map := 1
+var current_map := 1
+var transitioning := false
 var current_level := 1
 var running := false
 var score := 0
@@ -49,6 +53,8 @@ func _ready() -> void:
 		profile = ArcadeProfile.new()
 		profile.load_progress()
 	selected_level = profile.unlocked
+	selected_map = mini(profile.active_map+1,profile.unlocked_maps) if profile.map_complete and profile.active_map < 4 else profile.active_map
+	if profile.map_complete: selected_level = 1
 	_rng.randomize()
 	camera = Camera2D.new()
 	add_child(camera)
@@ -56,7 +62,9 @@ func _ready() -> void:
 	ui = ArcadeUI.new()
 	ui.round_duration = ceili(round_seconds)
 	add_child(ui)
-	ui.start_requested.connect(begin_round)
+	ui.start_requested.connect(_request_round)
+	ui.map_selection_changed.connect(_select_map)
+	ui.restart_requested.connect(_restart_map)
 	ui.pause_requested.connect(toggle_pause)
 	ui.abandon_requested.connect(abandon_round)
 	ui.selection_changed.connect(_select_level)
@@ -67,21 +75,62 @@ func _ready() -> void:
 	for stream in audio.get_children(): stream.volume_db = -80
 	_build_world(selected_level)
 	world.process_mode = Node.PROCESS_MODE_DISABLED
-	ui.show_menu(profile,selected_level)
+	ui.show_menu(profile,selected_level,{},false,selected_map)
 	_update_hud()
 
 func _select_level(level: int) -> void:
-	if running or level < 1 or level > profile.unlocked: return
+	if running or transitioning or level != profile.unlocked or selected_map != profile.active_map: return
 	selected_level = level
 	_build_world(level)
 	world.process_mode = Node.PROCESS_MODE_DISABLED
-	ui.show_menu(profile,selected_level,last_result)
+	ui.show_menu(profile,selected_level,last_result,false,selected_map)
 	_update_hud()
 
 func _buy_upgrade(index: int) -> void:
-	if running: return
+	if running or transitioning or selected_map != profile.active_map: return
 	profile.buy(index)
-	ui.show_menu(profile,selected_level,last_result)
+	ui.show_menu(profile,selected_level,last_result,false,selected_map)
+
+func _select_map(index: int) -> void:
+	if running or transitioning or index < 1 or index > profile.unlocked_maps: return
+	selected_map = index
+	selected_level = profile.unlocked if index == profile.active_map and not profile.map_complete else 1
+	_build_world(selected_level)
+	world.process_mode = Node.PROCESS_MODE_DISABLED
+	ui.show_menu(profile,selected_level,last_result,false,selected_map)
+	_update_hud()
+
+func _request_round(level: int, map_index: int) -> void:
+	if running or transitioning or map_index < 1 or map_index > profile.unlocked_maps: return
+	var entering := map_index != profile.active_map or profile.map_complete
+	if entering and level != 1: return
+	if not entering and level != profile.unlocked: return
+	transitioning = true
+	ui.show_transition(map_index,level)
+	await get_tree().create_timer(1.0).timeout
+	if entering:
+		profile.start_map(map_index)
+		selected_map = map_index
+		selected_level = 1
+		last_result = {"entered_map":true}
+		_build_world(1)
+		world.process_mode = Node.PROCESS_MODE_DISABLED
+		ui.show_menu(profile,1,last_result,false,selected_map)
+		_update_hud()
+	else: begin_round(level,map_index)
+	ui.hide_transition()
+	transitioning = false
+
+func _restart_map(map_index: int) -> void:
+	if running or transitioning or map_index != profile.active_map: return
+	profile.start_map(map_index)
+	selected_map = map_index
+	selected_level = 1
+	last_result = {"entered_map":true}
+	_build_world(1)
+	world.process_mode = Node.PROCESS_MODE_DISABLED
+	ui.show_menu(profile,1,last_result,false,selected_map)
+	_update_hud()
 
 func _build_world(level: int) -> void:
 	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
@@ -102,6 +151,7 @@ func _build_world(level: int) -> void:
 	var seed_value := fixed_seed if use_fixed_seed else _rng.randi()
 	world.build(level,seed_value)
 	current_level = level
+	current_map = selected_map
 	camera.position = world.arena_size * 0.5
 	camera.zoom = Vector2.ONE * 960.0 / world.arena_size.x
 	player = PLAYER.instantiate()
@@ -122,15 +172,22 @@ func _build_world(level: int) -> void:
 		var nest := ArcadeNest.new()
 		nest.position = point
 		nest.rng.seed = world.rng.randi()
-		nest.refill_speed = pow(0.86,profile.upgrades[2])
+		nest.refill_speed = pow(0.86,_buffs()[2])
+		nest.theme_index = current_map-1
 		world.add_child(nest)
 		nests.append(nest)
 	for i in range(3+level): _add_hen(false)
 	_spawn_batch(18+level*14)
 
-func begin_round(level: int) -> void:
+func begin_round(level: int, map_index := 0) -> void:
 	if running: return
-	if level < 1 or level > profile.unlocked: return
+	var target_map := selected_map if map_index == 0 else map_index
+	if target_map < 1 or target_map > profile.unlocked_maps: return
+	if target_map != profile.active_map or profile.map_complete:
+		if level != 1: return
+		profile.start_map(target_map)
+	if level != profile.unlocked or level < 1 or level > 4: return
+	selected_map = target_map
 	get_tree().paused = false
 	running = false
 	_build_world(level)
@@ -164,7 +221,7 @@ func _process(delta: float) -> void:
 	_update_pickup_feedback(get_global_mouse_position())
 	if time_left <= 10.0 and not _last_seconds_announced:
 		_last_seconds_announced = true
-		ui.announce("最后 10 秒，抓紧捡蛋！","10 seconds left. Keep collecting!")
+		ui.announce("最后 10 秒，抓紧收集！","10 seconds left. Keep collecting!")
 	combo_left = maxf(0,combo_left-delta)
 	if combo_left == 0: chain = 0
 	spawn_left -= delta
@@ -178,11 +235,11 @@ func _process(delta: float) -> void:
 	if current_level >= 3 and golden_count == 0 and elapsed >= round_seconds*0.5:
 		_add_hen(true)
 		golden_count = 1
-		ui.announce("黄金鸡来了！它留下的金蛋价值更高。","Golden hen! Follow the high-value golden eggs.")
+		ui.announce("黄金伙伴来了！金色收集物价值更高。","Golden visitor! Its golden items are worth more.")
 	if current_level == 4 and golden_count == 1 and elapsed >= round_seconds*0.75:
 		_add_hen(true)
 		golden_count = 2
-		ui.announce("第二只黄金鸡加入了农场！","A second golden hen has arrived!")
+		ui.announce("第二只黄金伙伴加入了农场！","A second golden visitor has arrived!")
 	_update_hud()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -202,11 +259,11 @@ func collect_at(point: Vector2) -> bool:
 		var closest: ArcadeEgg = target
 		var origin := closest.position
 		if not can_collect_point(closest.position):
-			ui.announce("只能捡身边的蛋；被木箱挡住时请绕过去。","Move closer; crates can block a pickup.")
+			ui.announce("只能收集身边的物品；被木箱挡住时请绕过去。","Move closer; crates can block a pickup.")
 			return false
 		_collect_egg(closest)
-		if profile.upgrades[0] > 0:
-			var radius: float = (18 + profile.upgrades[0]*12) / camera.zoom.x
+		if _buffs()[0] > 0:
+			var radius: float = (18 + _buffs()[0]*12) / camera.zoom.x
 			for other: ArcadeEgg in eggs.duplicate():
 				if other.position.distance_squared_to(origin) <= radius*radius and can_collect_point(other.position): _collect_egg(other)
 		return true
@@ -267,7 +324,7 @@ func _collect_egg(egg: ArcadeEgg) -> void:
 	egg.queue_free()
 
 func _award(point: Vector2, gold: bool) -> void:
-	var units := 2 if world.rng.randf() < profile.upgrades[1]*0.1 else 1
+	var units := 2 if world.rng.randf() < _buffs()[1]*0.1 else 1
 	chain += 1
 	combo_left = 2.2
 	var points := units * (5 if gold else 1) * multiplier()
@@ -279,6 +336,7 @@ func _award(point: Vector2, gold: bool) -> void:
 	effect.target = player
 	effect.golden = gold
 	effect.number = points
+	effect.theme_index = current_map-1
 	effect.z_index = 5
 	world.add_child(effect)
 	player.show_feed_toss()
@@ -294,6 +352,10 @@ func _add_hen(gold: bool) -> void:
 	var node = CHICKEN.instantiate()
 	node.set_script(HEN_SCRIPT)
 	var hen: ArcadeHen = node
+	if current_map > 1:
+		var body = hen.get_node("Body")
+		body.set_script(ANIMAL_ART)
+		body.theme_index = current_map-1
 	hen.world = world
 	hen.player = player
 	hen.golden = gold
@@ -307,7 +369,10 @@ func _add_hen(gold: bool) -> void:
 	hen.egg_laid.connect(_spawn_egg_at)
 
 func pickup_radius() -> float:
-	return base_pickup_radius + profile.upgrades[0]*4.0
+	return base_pickup_radius + _buffs()[0]*4.0
+
+func _buffs() -> Array:
+	return profile.upgrades if current_map == profile.active_map and not profile.map_complete else [0,0,0]
 
 func can_collect_point(point: Vector2) -> bool:
 	if player.position.distance_squared_to(point) > pow(pickup_radius(),2): return false
@@ -385,6 +450,7 @@ func _spawn_egg_at(point: Vector2, gold: bool) -> void:
 	var egg := ArcadeEgg.new()
 	egg.position = point
 	egg.golden = gold
+	egg.theme_index = current_map-1
 	egg.phase = world.rng.randf()*TAU
 	egg.scale = Vector2.ONE * maxf(1.2,1.05/camera.zoom.x)
 	egg.z_index = 1
@@ -395,7 +461,7 @@ func toggle_pause() -> void:
 	if not running: return
 	get_tree().paused = not get_tree().paused
 	_clear_pickup_feedback()
-	if get_tree().paused: ui.show_menu(profile,current_level,{},true)
+	if get_tree().paused: ui.show_menu(profile,current_level,{},true,current_map)
 	else: ui.hide_menu()
 
 func abandon_round() -> void:
@@ -403,7 +469,7 @@ func abandon_round() -> void:
 	get_tree().paused = false
 	running = false
 	world.process_mode = Node.PROCESS_MODE_DISABLED
-	ui.show_menu(profile,selected_level)
+	ui.show_menu(profile,selected_level,{},false,selected_map)
 
 func finish_round(caught := false) -> void:
 	if not running: return
@@ -414,8 +480,9 @@ func finish_round(caught := false) -> void:
 	last_result = profile.settle(current_level,score,not caught)
 	last_result["eggs"] = collected
 	last_result["caught"] = caught
-	selected_level = current_level if caught else mini(current_level+1,profile.unlocked)
-	ui.show_menu(profile,selected_level,last_result)
+	selected_map = mini(current_map+1,profile.unlocked_maps) if profile.map_complete and current_map < 4 else current_map
+	selected_level = 1 if profile.map_complete else profile.unlocked
+	ui.show_menu(profile,selected_level,last_result,false,selected_map)
 	_update_hud()
 
 func _update_hud() -> void:
