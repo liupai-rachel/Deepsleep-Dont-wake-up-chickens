@@ -2,9 +2,11 @@ class_name ArcadeSnake
 extends CharacterBody2D
 
 signal player_hit
+signal hatched
 const ATLAS := preload("res://assets/art/snake_atlas.png")
 const ART_SCALE := 0.24
-const BURST_SECONDS := 0.38
+const HATCH_SECONDS := 0.78
+const BURST_SECONDS := 1.50
 const DASH_SPEED := 460.0
 const MAX_DASH_SECONDS := 1.55
 var player: CoopPlayer
@@ -16,6 +18,8 @@ var retire_age := 0.0
 var art: Node2D
 var sprite: Sprite2D
 var frame_index := -1
+var hand_offset := Vector2.ZERO
+var did_hatch := false
 static var _textures: Array[AtlasTexture] = []
 
 func _ready() -> void:
@@ -41,6 +45,7 @@ func _ready() -> void:
 	sprite.scale = Vector2.ONE*ART_SCALE
 	sprite.material = ThemeSprites.pixel_material(_textures[0].region,36,ATLAS)
 	art.add_child(sprite)
+	if is_instance_valid(player): hand_offset = player.global_position+Vector2(16,-30)-global_position
 	_update_art()
 
 func _process(delta: float) -> void:
@@ -56,7 +61,12 @@ func _physics_process(delta: float) -> void:
 		_update_art()
 		if retire_age >= 0.2: queue_free()
 		return
+	if age < HATCH_SECONDS and is_instance_valid(player):
+		hand_offset = player.global_position+Vector2(16,-30)-global_position
 	age += delta
+	if not did_hatch and age >= HATCH_SECONDS:
+		did_hatch = true
+		hatched.emit()
 	_update_art()
 	if age < BURST_SECONDS: return
 	var previous := global_position
@@ -71,8 +81,25 @@ func _physics_process(delta: float) -> void:
 	if collision != null or age >= BURST_SECONDS+MAX_DASH_SECONDS: retiring = true
 
 func _update_art() -> void:
-	var index := mini(5,1+int(age/BURST_SECONDS*5.0)) if age < BURST_SECONDS and not preview else 6+int(age*12.0)%4
+	var index := 0
+	if preview: index = 6+int(age*12.0)%4
+	elif age < 0.40: index = 0
+	elif age < HATCH_SECONDS: index = 1
+	elif age < 0.94: index = 2
+	elif age < 1.10: index = 3
+	elif age < BURST_SECONDS: index = 4 if age < 1.28 else 5
+	else: index = 6+int(age*12.0)%4
 	if retiring: index = 10 if retire_age < 0.1 else 11
+	art.position = Vector2.ZERO
+	art.scale = Vector2.ONE
+	if not preview and age < HATCH_SECONDS:
+		var lift := clampf(age/0.32,0.0,1.0)
+		art.position = hand_offset*lift
+		art.scale = Vector2.ONE*lerpf(0.6,1.12,lift)
+		if age > 0.40: art.position.x += sin(age*70.0)*2.5
+	elif not preview and age < 1.10:
+		var fall := clampf((age-HATCH_SECONDS)/(1.10-HATCH_SECONDS),0.0,1.0)
+		art.position = hand_offset*(1.0-fall)+Vector2(0,-sin(fall*PI)*18.0)
 	if index == frame_index: return
 	frame_index = index
 	sprite.texture = _textures[index]
@@ -83,7 +110,7 @@ func _update_art() -> void:
 	sprite.material.set_shader_parameter("frame_region",Vector4(region.position.x/ATLAS.get_width(),region.position.y/ATLAS.get_height(),region.size.x/ATLAS.get_width(),region.size.y/ATLAS.get_height()))
 
 func _draw() -> void:
-	if preview or age >= BURST_SECONDS: return
+	if preview or age < HATCH_SECONDS or age >= BURST_SECONDS: return
 	var color := Color(1.0,0.9,0.5,0.65)
 	var tip := direction*46.0
 	draw_line(direction*18.0,tip,color,2.0)

@@ -27,6 +27,10 @@ var combo_bar: ProgressBar
 var combo_anchor: Control
 var combo_cheer: Label
 var protection_label: Label
+var reaction_label: Label
+var reaction_marker: Label
+var _reaction_left := 0.0
+var _reaction_age := 0.0
 var danger_label: Label
 var pause_button: Button
 var round_duration := 60
@@ -85,6 +89,18 @@ func _ready() -> void:
 	protection_label.add_theme_color_override("font_outline_color",Color("172033"))
 	protection_label.add_theme_constant_override("outline_size",4)
 	protection_label.hide()
+	reaction_label = _label(screen,Rect2(0,0,280,40),"",24)
+	reaction_label.pivot_offset = Vector2(140,20)
+	reaction_label.add_theme_color_override("font_color",Color("ffbc6e"))
+	reaction_label.add_theme_color_override("font_outline_color",Color("341f2c"))
+	reaction_label.add_theme_constant_override("outline_size",6)
+	reaction_label.hide()
+	reaction_marker = _label(screen,Rect2(0,0,48,56),"!",42)
+	reaction_marker.add_theme_font_override("font",PIXEL)
+	reaction_marker.add_theme_color_override("font_color",Color("fff2a6"))
+	reaction_marker.add_theme_color_override("font_outline_color",Color("412330"))
+	reaction_marker.add_theme_constant_override("outline_size",6)
+	reaction_marker.hide()
 	egg_label = _label(screen,Rect2(22,499,140,29),"",15)
 	stage_label = _label(screen,Rect2(785,499,154,29),"",14)
 	hint = _label(screen,Rect2(231,499,500,29),"",14)
@@ -151,8 +167,14 @@ func _process(delta: float) -> void:
 		transition_thief.update_pose(Vector2.RIGHT,true,&"idle",delta)
 	_toast_left = maxf(0.0,_toast_left-delta)
 	toast.visible = _toast_left > 0.0 and not overlay.visible
-	if not get_tree().paused: _combo_pop_age += delta
-	combo_anchor.visible = _current_chain >= 2 and not overlay.visible
+	if not get_tree().paused:
+		_combo_pop_age += delta
+		_reaction_left = maxf(0.0,_reaction_left-delta)
+		_reaction_age += delta
+	reaction_label.visible = _reaction_left > 0.0 and not overlay.visible
+	reaction_marker.visible = reaction_label.visible
+	reaction_label.scale = Vector2.ONE*(1.0+0.35*exp(-_reaction_age*9.0))
+	combo_anchor.visible = _current_chain >= 2 and not overlay.visible and _reaction_left == 0.0
 	if overlay.visible: protection_label.hide()
 	var pop := _combo_pop_age
 	var factor := lerpf(0.65,1.25,pop/0.08) if pop < 0.08 else 1.0+0.25*exp(-12.0*(pop-0.08))*cos((pop-0.08)*18.0)
@@ -174,9 +196,18 @@ func update_actor_feedback(point: Vector2, body_height: float, protection_left: 
 	var caption_y := point.y-body_height-42
 	if caption_y < 100: caption_y = point.y+42
 	combo_anchor.position = Vector2(clampf(point.x,125,835),clampf(caption_y,100,440))
+	reaction_label.position = Vector2(clampf(point.x-140,12,668),clampf(point.y-body_height-96 if point.y-body_height-96 > 95 else point.y+64,95,430))
+	reaction_marker.position = Vector2(clampf(point.x-24,15,895),clampf(point.y-body_height-57 if point.y-body_height-96 > 95 else point.y+7,90,440))
 	protection_label.position = Vector2(clampf(point.x-75,15,795),clampf(point.y+8,80,467))
 	protection_label.text = tr2("开局保护 %ds","Protected %ds") % ceili(protection_left)
 	protection_label.visible = protection_left > 0 and not overlay.visible
+
+func show_reaction(zh: String, en: String, seconds := 1.0) -> void:
+	reaction_label.text = tr2(zh,en)
+	_reaction_left = seconds
+	_reaction_age = 0.0
+	reaction_label.show()
+	reaction_marker.show()
 
 func announce(zh: String, en: String) -> void:
 	toast.text = tr2(zh,en)
@@ -193,7 +224,7 @@ func update_game(score: int, eggs: int, chain: int, multiplier: int, combo_left:
 	_current_chain = chain
 	_current_multiplier = multiplier
 	combo_label.text = tr2("连击 ×%d","COMBO ×%d") % chain
-	combo_anchor.visible = chain >= 2 and not overlay.visible
+	combo_anchor.visible = chain >= 2 and not overlay.visible and _reaction_left == 0.0
 	combo_bar.value = combo_left
 	stage_label.text = "%s %d-%d" % [ArcadeThemes.name_for(_map_selected,language),_map_selected,level]
 	hint.text = tr2("左键收集附近物品 / 连点资源点　 WASD 移动","Left-click nearby items / patches   WASD move")
@@ -211,6 +242,9 @@ func show_menu(profile: ArcadeProfile, selected: int, result := {}, paused := fa
 		overlay.remove_child(child)
 		child.queue_free()
 	overlay.show()
+	_reaction_left = 0.0
+	reaction_label.hide()
+	reaction_marker.hide()
 	combo_anchor.hide()
 	protection_label.hide()
 	pause_button.hide()
@@ -300,7 +334,7 @@ func show_transition(map_index: int, level: int) -> void:
 	var snake_room := map_index == 1 and level >= 2
 	_label(transition_screen,Rect2(140,277,680,30),tr2("小心！有小蛇出没！","WATCH OUT! LITTLE SNAKES AHEAD!") if snake_room else tr2("提好袋子，准备出发……","Pack your bag. A fresh harvest awaits."),22 if snake_room else 18)
 	if snake_room:
-		_label(transition_screen,Rect2(100,314,760,25),tr2("蛇藏在随机地面蛋里；破壳后沿固定方向直冲，记得侧移！","Random ground eggs hide snakes. Shell bursts, then a straight dash. Sidestep!"),14)
+		_label(transition_screen,Rect2(100,314,760,25),tr2("捡蛋后先放大、裂开；看到感叹号，快侧移躲开小蛇！","The egg grows and cracks. When ! appears, sidestep the snake!"),14)
 		var snake := ArcadeSnake.new()
 		snake.preview = true
 		snake.position = Vector2(490,415)

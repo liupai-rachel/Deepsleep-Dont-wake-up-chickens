@@ -68,7 +68,7 @@ func run() -> void:
 	await tick(20)
 	expect(is_equal_approx(snake.age,age),"Pausing must freeze burst and dash animations")
 	game.toggle_pause()
-	await tick(35)
+	await tick(110)
 	expect(game.running and game.score == 7 and game.chain == 0 and game.player.invulnerable,"A snake bump must cost three points and the chain, grant immunity, and keep the round playable")
 	game._on_snake_hit()
 	expect(game.score == 7,"Immunity must prevent repeated snake penalties")
@@ -79,7 +79,7 @@ func run() -> void:
 	snake = game.snakes.back()
 	var locked := snake.direction
 	game.player.position = origin+Vector2(40,85)
-	await tick(45)
+	await tick(115)
 	expect(is_instance_valid(snake) and snake.direction == locked and absf(snake.position.y-origin.y) < 0.01,"A sidestepped snake must keep its locked straight route instead of homing")
 	expect(game.score == 7,"Sidestepping must avoid the penalty")
 	# Walls stop the dash instead of allowing snakes to pass through cover.
@@ -88,14 +88,14 @@ func run() -> void:
 	wall_snake.position = Vector2(cover.position.x-36,cover.get_center().y)
 	wall_snake.direction = Vector2.RIGHT
 	game.world.add_child(wall_snake)
-	await tick(35)
+	await tick(110)
 	expect(not is_instance_valid(wall_snake) or wall_snake.retiring,"Snakes must retire when they hit a crate")
 	game.abandon_round()
 	game.set_process(true)
 	game.begin_round(1,4)
 	await tick(3)
 	var patch: ArcadeNest = game.nests[0]
-	expect(patch.theme_index == 3 and patch.get_child(0) is Node2D and not patch.get_child(0) is Sprite2D,"The garden must use soil and fences rather than a straw nest sprite")
+	expect(patch.theme_index == 3 and patch.has_node("VegetableBasket") and patch.get_node("VegetableBasket") is Sprite2D,"The garden resource station must use a vegetable basket")
 	patch.refill()
 	expect(patch.plant_growth[0] == 0.0,"Refilling vegetables must begin the rising-from-soil animation")
 	patch._process(1.0)

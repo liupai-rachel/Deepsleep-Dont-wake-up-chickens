@@ -58,6 +58,11 @@ func update_pose(direction: Vector2, moving: bool, action: StringName, delta: fl
 	_sprite.rotation = 0.0
 	_sprite.modulate = Color.WHITE
 	_sprite.scale = Vector2.ONE * _pixel_scale
+	if character == 0 and action == &"startle":
+		_sprite.texture = _frames[0]
+		_sprite.rotation = sin(_phase*35.0)*0.1
+		_sprite.position.y = -sprite_height*0.5-absf(sin(_phase*13.0))*6.0
+		return
 	if character == 0 and moving and absf(direction.y) > absf(direction.x) and action != &"search":
 		_show_vertical_run(direction,delta)
 		return

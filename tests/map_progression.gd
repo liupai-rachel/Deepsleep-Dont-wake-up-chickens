@@ -44,7 +44,7 @@ func run() -> void:
 			expect(game.running and game.current_map == map_index and game.current_level == room,"All sixteen map-room combinations must play")
 			expect(game.profile.upgrades == buffs,"Buffs must persist between rooms of the same map")
 			expect(game.eggs[0].theme_index == map_index-1 and game.nests[0].theme_index == map_index-1,"Ground and nest resources must use the selected map skin")
-			expect(game.hens.size() == 3+room,"Theme swaps must preserve the original patrol population")
+			expect(game.hens.size() == ArcadeDifficulty.for_stage(map_index,room).animals,"Patrol population must match the map/room difficulty")
 			if map_index > 1:
 				expect(game.hens[0].get_node("Body").get("theme_index") == map_index-1,"Sheep, squirrels and dogs must replace chicken art")
 			var before := game.profile.coins

@@ -3,6 +3,8 @@ extends Node2D
 
 const BACKDROP := preload("res://assets/art/coop_backdrop.png")
 const CRATE := preload("res://scenes/crate.tscn")
+var theme_index := 1
+var cover_props: Array[int] = []
 var arena_size := Vector2(960,540)
 var bounds := Rect2(36,74,888,404)
 var solids: Array[Rect2] = []
@@ -25,6 +27,7 @@ func build(level: int, seed_value: int) -> void:
 	backdrop.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	var projection := ShaderMaterial.new()
 	projection.shader = preload("res://assets/art/coop_projection.gdshader")
+	projection.set_shader_parameter("theme_tint",[Vector3.ONE,Vector3(0.90,1.03,0.90),Vector3(0.68,0.98,1.03),Vector3(0.97,0.91,0.83)][theme_index-1])
 	backdrop.material = projection
 	add_child(backdrop)
 	floor_texture = AtlasTexture.new()
@@ -39,8 +42,20 @@ func build(level: int, seed_value: int) -> void:
 		if point == Vector2.INF: break
 		var cover := CRATE.instantiate()
 		cover.position = point
+		var prop := -1
+		if theme_index == 2: prop = 2 if index%3 != 2 else -1
+		elif theme_index == 3: prop = [1,5,-1][index%3]
+		elif theme_index == 4: prop = [3,-1,6][index%3]
+		cover_props.append(prop)
+		if prop >= 0:
+			var old := cover.get_node("Art")
+			cover.remove_child(old)
+			old.queue_free()
+			if prop == 1: cover.add_child(FarmProps.sprite(5,110,38))
+			cover.add_child(FarmProps.sprite(prop,144,38))
 		add_child(cover)
 		solids.append(Rect2(point-Vector2(52,38),Vector2(104,76)))
+	_decorate_edges(factor)
 	bake_navigation()
 	queue_redraw()
 
@@ -101,7 +116,27 @@ func _draw() -> void:
 	for y in range(int(bounds.position.y),int(bounds.end.y),96):
 		for x in range(int(bounds.position.x),int(bounds.end.x),128):
 			var size := Vector2(minf(128,bounds.end.x-x),minf(96,bounds.end.y-y))
-			draw_texture_rect_region(floor_texture,Rect2(Vector2(x,y),size),Rect2(Vector2.ZERO,size*2))
+			draw_texture_rect_region(floor_texture,Rect2(Vector2(x,y),size),Rect2(Vector2.ZERO,size*2),[Color.WHITE,Color(0.82,1.0,0.85),Color(0.63,0.94,0.93),Color(0.94,0.83,0.72)][theme_index-1])
+
+func _decorate_edges(factor: float) -> void:
+	if theme_index == 1: return
+	var prop := 4 if theme_index == 2 else (1 if theme_index == 3 else 3)
+	for x in [95,245,715,865]:
+		var holder := Node2D.new()
+		holder.position = Vector2(x,84)*factor
+		holder.add_child(FarmProps.sprite(prop,(82 if theme_index == 3 else 125)*factor))
+		add_child(holder)
+	for side in [0,1]:
+		for y in [180,320,455]:
+			var holder := Node2D.new()
+			holder.position = Vector2(24 if side == 0 else 936,y)*factor
+			holder.add_child(FarmProps.sprite(prop,(72 if theme_index == 3 else 84)*factor))
+			add_child(holder)
+	for x in [130,320,660,840]:
+		var holder := Node2D.new()
+		holder.position = Vector2(x,512)*factor
+		holder.add_child(FarmProps.sprite(7 if theme_index == 2 else (5 if theme_index == 3 else 6),100*factor))
+		add_child(holder)
 
 func bake_navigation() -> void:
 	navigation = NavigationRegion2D.new()

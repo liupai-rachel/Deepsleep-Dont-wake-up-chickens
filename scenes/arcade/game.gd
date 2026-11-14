@@ -49,6 +49,13 @@ var _last_seconds_announced := false
 var protection_left := 0.0
 var snake_immunity_left := 0.0
 var snakes: Array[ArcadeSnake] = []
+var stage_settings := {}
+var _was_seen := false
+var _detection_cooldown := 0.0
+var _shake_left := 0.0
+var _shake_duration := 0.28
+var _shake_strength := 0.0
+var _shake_clock := 0.0
 var _rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
@@ -151,6 +158,9 @@ func _build_world(level: int) -> void:
 	hens.clear()
 	snakes.clear()
 	farmer = null
+	_was_seen = false
+	_detection_cooldown = 0.0
+	_reset_shake()
 	_farmer_warning = 0.0
 	_farmer_armed = true
 	protection_left = 0.0
@@ -160,6 +170,8 @@ func _build_world(level: int) -> void:
 	world.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(world)
 	var seed_value := fixed_seed if use_fixed_seed else _rng.randi()
+	world.theme_index = selected_map
+	stage_settings = ArcadeDifficulty.for_stage(selected_map,level)
 	world.build(level,seed_value)
 	current_level = level
 	current_map = selected_map
@@ -175,6 +187,10 @@ func _build_world(level: int) -> void:
 	player.add_child(pickup_circle)
 	player.move_child(pickup_circle,0)
 	alert = CoopAlert.new()
+	alert.sight_gain_per_second = stage_settings.sight_gain
+	alert.cluck_gain = stage_settings.cluck_gain
+	alert.calm_delay = stage_settings.calm_delay
+	alert.decay_per_second = stage_settings.decay
 	world.add_child(alert)
 	for i in range(2 + level*2):
 		var point := world.free_point(52,true)
@@ -187,7 +203,7 @@ func _build_world(level: int) -> void:
 		nest.theme_index = current_map-1
 		world.add_child(nest)
 		nests.append(nest)
-	for i in range(3+level): _add_hen(false)
+	for i in range(stage_settings.animals): _add_hen(false)
 	_spawn_batch(18+level*14)
 	_seed_snake_eggs()
 
@@ -232,6 +248,7 @@ func _process(delta: float) -> void:
 	player.invulnerable = protection_left > 0.0 or snake_immunity_left > 0.0
 	_update_guards(delta)
 	if not running: return
+	_update_shake(delta)
 	_update_pickup_feedback(get_global_mouse_position())
 	if time_left <= 10.0 and not _last_seconds_announced:
 		_last_seconds_announced = true
@@ -246,11 +263,11 @@ func _process(delta: float) -> void:
 		_spawn_batch(count)
 		spawn_left = world.rng.randf_range(0.45,1.1)
 	var elapsed := round_seconds-time_left
-	if current_level >= 3 and golden_count == 0 and elapsed >= round_seconds*0.5:
+	if current_map != 3 and current_level >= 3 and golden_count == 0 and elapsed >= round_seconds*0.5:
 		_add_hen(true)
 		golden_count = 1
 		ui.announce("黄金伙伴来了！金色收集物价值更高。","Golden visitor! Its golden items are worth more.")
-	if current_level == 4 and golden_count == 1 and elapsed >= round_seconds*0.75:
+	if current_map != 3 and current_level == 4 and golden_count == 1 and elapsed >= round_seconds*0.75:
 		_add_hen(true)
 		golden_count = 2
 		ui.announce("第二只黄金伙伴加入了农场！","A second golden visitor has arrived!")
@@ -357,10 +374,19 @@ func _release_snake(point: Vector2) -> void:
 	snake.direction = (player.position-point).normalized()
 	if snake.direction.is_zero_approx(): snake.direction = Vector2.from_angle(world.rng.randf_range(0,TAU))
 	snake.player_hit.connect(_on_snake_hit)
+	snake.hatched.connect(_on_snake_hatched)
 	world.add_child(snake)
 	snakes.append(snake)
 	snake.tree_exiting.connect(func(): snakes.erase(snake))
-	ui.announce("小蛇蹦出来了！侧移躲开直冲！","A little snake! Sidestep its straight dash!")
+	player.show_feed_toss()
+	ui.announce("捡到一枚奇怪的蛋……","Something is moving inside this egg…")
+
+func _on_snake_hatched() -> void:
+	if not running: return
+	player.show_startle()
+	ui.show_reaction("！小蛇！快躲！","! SNAKE! MOVE!",1.05)
+	ui.announce("蛋裂开了！快侧移，小蛇马上直冲！","The egg cracked! Sidestep before the snake dashes!")
+	_start_shake(2.5,0.18)
 
 func _on_snake_hit() -> void:
 	if not running or player.invulnerable: return
@@ -396,6 +422,7 @@ func multiplier() -> int:
 	return 1 + mini(3,chain/12)
 
 func _add_hen(gold: bool) -> void:
+	if gold and current_map == 3: return
 	var point := world.patrol_point(hens.size()%4)
 	if point == Vector2.INF: point = world.free_point(24,true)
 	if point == Vector2.INF: return
@@ -410,9 +437,9 @@ func _add_hen(gold: bool) -> void:
 	hen.player = player
 	hen.golden = gold
 	hen.position = point
-	hen.patrol_speed = 90.0 if gold else 82.0
+	hen.patrol_speed = stage_settings.patrol_speed*(1.08 if gold else 1.0)
 	hen.waypoint_pause = 0.6
-	hen.vision_distance = 175.0
+	hen.vision_distance = stage_settings.vision
 	hen.set_patrol_seed(world.rng.randi())
 	world.add_child(hen)
 	hens.append(hen)
@@ -431,8 +458,10 @@ func can_collect_point(point: Vector2) -> bool:
 	return get_world_2d().direct_space_state.intersect_ray(ray).is_empty()
 
 func _update_guards(delta: float) -> void:
+	_detection_cooldown = maxf(0.0,_detection_cooldown-delta)
 	if not guards_enabled: return
 	if player.invulnerable:
+		_was_seen = false
 		for hen in hens: hen.take_alarm()
 		ui.update_danger(alert.level,false,false)
 		return
@@ -441,17 +470,31 @@ func _update_guards(delta: float) -> void:
 	for hen in hens:
 		if hen.sees_player: seen += 1
 		if hen.take_alarm(): clucks += 1
+	var detected := seen > 0 or (is_instance_valid(farmer) and farmer.sees_player)
+	if detected and not _was_seen and _detection_cooldown == 0.0:
+		_start_shake(4.0,0.28)
+		ui.show_reaction("！被发现了！","! SPOTTED!",0.9)
+		ui.announce("被发现了！快绕到掩体后，农夫会赶过来！","Spotted! Break sight behind cover before the farmer arrives!")
+		_detection_cooldown = 1.2
+	_was_seen = detected
+	if seen > 0: _reported_position = player.position
 	alert.advance(delta,seen,clucks,is_instance_valid(farmer) and farmer.sees_player)
 	ui.update_danger(alert.level,seen > 0,is_instance_valid(farmer))
-	if is_instance_valid(farmer): return
+	if is_instance_valid(farmer):
+		if seen > 0 and not farmer.sees_player:
+			farmer.last_known_position = _reported_position
+			farmer._search_index = -1
+			farmer._search_elapsed = 0.0
+			farmer.state = CoopFarmer.State.SEARCHING
+		return
 	if _farmer_warning > 0.0:
 		_farmer_warning = maxf(0,_farmer_warning-delta)
 		if _farmer_warning == 0.0: _spawn_farmer()
-	elif alert.level < 60:
+	elif alert.level < stage_settings.summon_at:
 		_farmer_armed = true
 	elif _farmer_armed:
 		_farmer_armed = false
-		_farmer_warning = 1.8
+		_farmer_warning = stage_settings.warning
 		_reported_position = player.position
 		ui.announce("警戒升高，农夫即将从北侧入场！","High alert! The farmer is coming from the north!")
 
@@ -459,6 +502,11 @@ func _spawn_farmer() -> void:
 	farmer = FARMER.instantiate()
 	farmer.player = player
 	farmer.alert = alert
+	farmer.chase_speed = stage_settings.farmer_chase
+	farmer.walk_speed = stage_settings.farmer_walk
+	farmer.vision_distance = stage_settings.farmer_vision
+	farmer.search_seconds = stage_settings.farmer_search
+	farmer.retreat_alert_level = 28.0-stage_settings.pressure*2.0
 	farmer.position = Vector2(world.bounds.get_center().x,world.bounds.position.y+25)
 	farmer.home_position = farmer.position
 	farmer.last_known_position = _reported_position
@@ -470,7 +518,7 @@ func _spawn_farmer() -> void:
 func _farmer_departed() -> void:
 	if is_instance_valid(farmer): farmer.queue_free()
 	farmer = null
-	_farmer_armed = alert.level < 60
+	_farmer_armed = alert.level < stage_settings.summon_at
 
 func _spawn_batch(count: int) -> void:
 	var maximum := 48+current_level*18
@@ -483,7 +531,7 @@ func _spawn_batch(count: int) -> void:
 			if egg.position.distance_to(point) < 20:
 				clear = false
 				break
-		if clear: _spawn_egg_at(point,false)
+		if clear: _spawn_egg_at(point,current_map == 3 and world.rng.randf() < 0.045+current_level*0.012)
 
 func _spawn_egg_at(point: Vector2, gold: bool) -> void:
 	if not world.is_free(point,12,true): return
@@ -510,11 +558,13 @@ func _spawn_egg_at(point: Vector2, gold: bool) -> void:
 func toggle_pause() -> void:
 	if not running: return
 	get_tree().paused = not get_tree().paused
+	if get_tree().paused: camera.offset = Vector2.ZERO
 	_clear_pickup_feedback()
 	if get_tree().paused: ui.show_menu(profile,current_level,{},true,current_map)
 	else: ui.hide_menu()
 
 func abandon_round() -> void:
+	_reset_shake()
 	_clear_pickup_feedback()
 	get_tree().paused = false
 	running = false
@@ -523,6 +573,7 @@ func abandon_round() -> void:
 
 func finish_round(caught := false) -> void:
 	if not running: return
+	_reset_shake()
 	_clear_pickup_feedback()
 	running = false
 	get_tree().paused = false
@@ -539,3 +590,22 @@ func _update_hud() -> void:
 	if is_instance_valid(ui):
 		ui.update_game(score,collected,chain,multiplier(),combo_left,time_left,current_level)
 		if is_instance_valid(player): ui.update_actor_feedback(get_canvas_transform()*player.position,60.0*camera.zoom.x,protection_left)
+
+func _start_shake(strength: float, seconds: float) -> void:
+	_shake_strength = maxf(_shake_strength,strength)
+	_shake_duration = seconds
+	_shake_left = seconds
+	_shake_clock = 0.0
+
+func _update_shake(delta: float) -> void:
+	_shake_left = maxf(0.0,_shake_left-delta)
+	_shake_clock += delta
+	if _shake_left == 0.0:
+		_reset_shake()
+		return
+	camera.offset = Vector2(sin(_shake_clock*83.0),cos(_shake_clock*97.0))*_shake_strength*(_shake_left/_shake_duration)/camera.zoom.x
+
+func _reset_shake() -> void:
+	_shake_left = 0.0
+	_shake_strength = 0.0
+	if is_instance_valid(camera): camera.offset = Vector2.ZERO
