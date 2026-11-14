@@ -51,10 +51,6 @@ func _ready() -> void:
 	selected_level = profile.unlocked
 	_rng.randomize()
 	camera = Camera2D.new()
-	camera.process_mode = Node.PROCESS_MODE_PAUSABLE
-	camera.position_smoothing_enabled = true
-	camera.position_smoothing_speed = 9.0
-	camera.limit_smoothed = true
 	add_child(camera)
 	camera.make_current()
 	ui = ArcadeUI.new()
@@ -106,17 +102,12 @@ func _build_world(level: int) -> void:
 	var seed_value := fixed_seed if use_fixed_seed else _rng.randi()
 	world.build(level,seed_value)
 	current_level = level
-	camera.zoom = Vector2.ONE*1.08
-	camera.limit_left = 0
-	camera.limit_top = 0
-	camera.limit_right = ceili(world.arena_size.x)
-	camera.limit_bottom = ceili(world.arena_size.y)
+	camera.position = world.arena_size * 0.5
+	camera.zoom = Vector2.ONE * 960.0 / world.arena_size.x
 	player = PLAYER.instantiate()
-	player.position = world.start_position()
+	player.position = Vector2(world.bounds.get_center().x,world.bounds.end.y-45)
 	player.move_speed = 330.0
 	world.add_child(player)
-	world.actor = player
-	update_camera(true)
 	pickup_circle = Node2D.new()
 	pickup_circle.set_script(RANGE_SCRIPT)
 	pickup_circle.radius = pickup_radius()
@@ -125,7 +116,7 @@ func _build_world(level: int) -> void:
 	alert = CoopAlert.new()
 	world.add_child(alert)
 	for i in range(2 + level*2):
-		var point := world.first_nest_point() if i == 0 else world.free_point(52,true)
+		var point := world.free_point(52,true)
 		if point == Vector2.INF: break
 		world.nest_points.append(point)
 		var nest := ArcadeNest.new()
@@ -135,7 +126,7 @@ func _build_world(level: int) -> void:
 		world.add_child(nest)
 		nests.append(nest)
 	for i in range(3+level): _add_hen(false)
-	_spawn_batch(egg_target())
+	_spawn_batch(18+level*14)
 
 func begin_round(level: int) -> void:
 	if running: return
@@ -162,7 +153,6 @@ func begin_round(level: int) -> void:
 
 func _process(delta: float) -> void:
 	if not running or get_tree().paused: return
-	update_camera()
 	time_left = maxf(0,time_left-delta)
 	if time_left <= 0:
 		finish_round()
@@ -179,7 +169,7 @@ func _process(delta: float) -> void:
 	if combo_left == 0: chain = 0
 	spawn_left -= delta
 	if spawn_left <= 0:
-		var desired := egg_target()
+		var desired := 18+current_level*14
 		var count := world.rng.randi_range(2,5)
 		if eggs.size() < desired/2: count += 6
 		_spawn_batch(count)
@@ -368,7 +358,7 @@ func _farmer_departed() -> void:
 	_farmer_armed = alert.level < 60
 
 func _spawn_batch(count: int) -> void:
-	var maximum := egg_cap()
+	var maximum := 48+current_level*18
 	for i in range(count):
 		if eggs.size() >= maximum: break
 		var point := world.free_point(16,true)
@@ -382,7 +372,7 @@ func _spawn_batch(count: int) -> void:
 
 func _spawn_egg_at(point: Vector2, gold: bool) -> void:
 	if not world.is_free(point,12,true): return
-	if eggs.size() >= egg_cap():
+	if eggs.size() >= 48+current_level*18:
 		if not gold: return
 		var replaced := false
 		for old in eggs:
@@ -397,20 +387,9 @@ func _spawn_egg_at(point: Vector2, gold: bool) -> void:
 	egg.golden = gold
 	egg.phase = world.rng.randf()*TAU
 	egg.scale = Vector2.ONE * maxf(1.2,1.05/camera.zoom.x)
+	egg.z_index = 1
 	world.add_child(egg)
 	eggs.append(egg)
-
-func egg_target() -> int:
-	return clampi(int(world.bounds.get_area()/13000.0),130,330)
-
-func egg_cap() -> int:
-	return egg_target()+maxi(80,egg_target()/2)
-
-func update_camera(snap := false) -> void:
-	if not is_instance_valid(player): return
-	camera.position = player.position
-	if snap: camera.reset_smoothing()
-	camera.force_update_scroll()
 
 func toggle_pause() -> void:
 	if not running: return

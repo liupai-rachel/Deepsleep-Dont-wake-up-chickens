@@ -39,8 +39,7 @@ func _patrol(delta: float) -> void:
 		_choose_roam_target()
 		return
 	_target_age += delta
-	var travel_limit := maxf(22.0,world.bounds.size.length()/patrol_speed*1.4)
-	if position.distance_squared_to(roam_target) <= 144 or _stuck_left > 1.8 or _target_age > travel_limit:
+	if position.distance_squared_to(roam_target) <= 144 or _stuck_left > 1.8 or _target_age > 22.0:
 		roam_target = Vector2.INF
 		_wait_left = _patrol_rng.randf_range(0.15,0.5)
 		return

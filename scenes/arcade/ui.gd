@@ -9,8 +9,8 @@ signal selection_changed(level: int)
 
 const FONT := preload("res://assets/fonts/CoopUI.ttf")
 const PIXEL := preload("res://assets/fonts/PressStart2P-Regular.ttf")
-const STAGE_ZH := ["农场入口", "鸡舍院落", "扩建农场", "大型农场"]
-const STAGE_EN := ["Farm Gate", "Yard", "Farm", "Estate"]
+const STAGE_ZH := ["小鸡舍", "鸡舍院落", "扩建农场", "大型农场"]
+const STAGE_EN := ["Coop", "Yard", "Farm", "Estate"]
 var language := "zh"
 var screen: Control
 var overlay: ColorRect
@@ -234,7 +234,7 @@ func show_menu(profile: ArcadeProfile, selected: int, result := {}, paused := fa
 		var text := tr2("已满级","MAX LEVEL") if price < 0 else tr2("升级 · %d 币","Upgrade · %d coins") % price
 		var button := _button(panel,Rect2(30+i*240,274,216,35),text,func(): upgrade_requested.emit(index))
 		button.disabled = paused or price < 0 or profile.coins < price
-	var guide := tr2("WASD 移动 · 左键捡附近蛋 · Esc 暂停\n镜头跟随，开局保护 3 秒；躲开鸡的视野，警戒过高引来农夫。","WASD move · Left-click nearby eggs · Esc pause\nCamera follows you. 3s start protection; avoid hen sight and high alert.")
+	var guide := tr2("WASD 移动 · 左键捡附近蛋 · Esc 暂停\n开局保护 3 秒；躲开鸡的视野，警戒过高会引来农夫。","WASD move · Left-click nearby eggs · Esc pause\n3-second start protection. Avoid hen sight; high alert brings the farmer.")
 	_label(panel,Rect2(18,319,720,43),guide,14)
 	if not profile.saved:
 		_label(panel,Rect2(18,361,720,20),tr2("当前浏览器无法保存进度，关闭后升级可能丢失。","Storage is unavailable; upgrades may be lost when this tab closes."),12)

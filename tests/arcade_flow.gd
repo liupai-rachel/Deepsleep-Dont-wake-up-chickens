@@ -15,7 +15,6 @@ func tick(frames: int) -> void:
 	for i in range(frames): await process_frame
 
 func click(game: ArcadeGame, button: int, point: Vector2) -> void:
-	game.update_camera(true)
 	var screen_point := game.get_canvas_transform() * point
 	var event := InputEventMouseButton.new()
 	event.button_index = button
@@ -115,7 +114,7 @@ func run() -> void:
 		other.queue_free()
 	collected_before = game.collected
 	await tick(500)
-	expect(game.eggs.size() > 0 and game.eggs.size() <= game.egg_cap(),"Random spawning must replenish eggs and respect a cap")
+	expect(game.eggs.size() > 0 and game.eggs.size() <= 66,"Random spawning must replenish eggs and respect a cap")
 	expect(game.collected == collected_before,"Spawning must not count as collecting")
 	expect(nest.stock >= 2 and nest.stock <= 6,"Empty nests must refill with a visible random stock")
 	var time_before := game.time_left

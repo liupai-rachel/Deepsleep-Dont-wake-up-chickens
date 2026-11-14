@@ -232,9 +232,6 @@ func _update_vision(space: PhysicsDirectSpaceState2D, half_angle: float, sight_r
 		if cover.disabled or rectangle == null:
 			continue
 		var half_size := rectangle.size * 0.5
-		var cover_radius := half_size.length()*maxf(absf(cover.global_scale.x),absf(cover.global_scale.y))
-		if global_position.distance_squared_to(cover.global_position) > pow(sight_range+cover_radius,2):
-			continue
 		for corner in [
 			-half_size,
 			Vector2(half_size.x, -half_size.y),
