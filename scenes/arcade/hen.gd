@@ -10,9 +10,13 @@ var _sectors: Array[int] = []
 var _last_sector := -1
 var _stuck_left := 0.0
 var _target_age := 0.0
+var _progress_age := 0.0
+var _progress_position := Vector2.ZERO
+var recovery_count := 0
 signal egg_laid(point: Vector2, gold: bool)
 
 func _ready() -> void:
+	_progress_position = position
 	_last_sector = world.patrol_sector(position)
 	_facing = Vector2.from_angle(_patrol_rng.randf_range(0,TAU))
 	if golden:
@@ -24,6 +28,7 @@ func _physics_process(delta: float) -> void:
 	# Reuse turning, occluded sight and alarms, with global roaming below.
 	if NavigationServer2D.map_get_iteration_id(get_world_2d().navigation_map) == 0: return
 	super._physics_process(delta)
+	_watch_progress(delta)
 	lay_left -= delta
 	if lay_left <= 0.0:
 		egg_laid.emit(position + Vector2(0,12),golden)
@@ -79,3 +84,25 @@ func _draw() -> void:
 	if golden:
 		draw_arc(Vector2(0,-15),24,0,TAU,24,Color(1,0.8,0.2,0.45),2)
 		draw_rect(Rect2(-4,-53,8,4),Color("ffe28a"))
+
+func _watch_progress(delta: float) -> void:
+	if not roaming_enabled: return
+	_progress_age += delta
+	if _progress_age < 1.25: return
+	# Corner jitter can move a fraction of a pixel forever; assess net progress.
+	var stalled := position.distance_squared_to(_progress_position) < 36.0
+	_progress_position = position
+	_progress_age = 0.0
+	if not stalled or _eat_left > 0.0: return
+	recovery_count += 1
+	for i in range(12):
+		var angle := _facing.angle()+PI*0.5+i*TAU/12.0
+		var offset := Vector2.from_angle(angle)*52.0
+		if world.is_free(position+offset,18) and not test_move(global_transform,offset):
+			roam_target = position+offset
+			_wait_left = 0.0
+			_stuck_left = 0.0
+			_target_age = 0.0
+			return
+	roam_target = Vector2.INF
+	_wait_left = 0.0

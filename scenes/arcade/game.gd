@@ -8,11 +8,13 @@ const FARMER := preload("res://scenes/farmer.tscn")
 const HEN_SCRIPT := preload("res://scenes/arcade/hen.gd")
 const RANGE_SCRIPT := preload("res://scenes/arcade/pickup_range.gd")
 const EFFECT := preload("res://scenes/arcade/effect.gd")
+const SNAKE := preload("res://scenes/arcade/snake.gd")
 const ANIMAL_ART := preload("res://scenes/arcade/animal_art.gd")
 @export_range(10.0,300.0,1.0) var round_seconds := 60.0
 @export var use_fixed_seed := false
 @export var fixed_seed := 7
 @export var guards_enabled := true
+@export var free_stage_select := true
 @export_range(30.0,220.0,5.0) var base_pickup_radius := 70.0
 var profile: ArcadeProfile
 var selected_level := 1
@@ -45,13 +47,17 @@ var _farmer_armed := true
 var _reported_position := Vector2.ZERO
 var _last_seconds_announced := false
 var protection_left := 0.0
+var snake_immunity_left := 0.0
+var snakes: Array[ArcadeSnake] = []
 var _rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	if profile == null:
 		profile = ArcadeProfile.new()
+		profile.free_selection = free_stage_select
 		profile.load_progress()
+	profile.free_selection = free_stage_select
 	selected_level = profile.unlocked
 	selected_map = mini(profile.active_map+1,profile.unlocked_maps) if profile.map_complete and profile.active_map < 4 else profile.active_map
 	if profile.map_complete: selected_level = 1
@@ -79,7 +85,8 @@ func _ready() -> void:
 	_update_hud()
 
 func _select_level(level: int) -> void:
-	if running or transitioning or level != profile.unlocked or selected_map != profile.active_map: return
+	if running or transitioning or level < 1 or level > 4: return
+	if not free_stage_select and (level != profile.unlocked or selected_map != profile.active_map): return
 	selected_level = level
 	_build_world(level)
 	world.process_mode = Node.PROCESS_MODE_DISABLED
@@ -92,7 +99,7 @@ func _buy_upgrade(index: int) -> void:
 	ui.show_menu(profile,selected_level,last_result,false,selected_map)
 
 func _select_map(index: int) -> void:
-	if running or transitioning or index < 1 or index > profile.unlocked_maps: return
+	if running or transitioning or not profile.can_visit_map(index): return
 	selected_map = index
 	selected_level = profile.unlocked if index == profile.active_map and not profile.map_complete else 1
 	_build_world(selected_level)
@@ -101,21 +108,23 @@ func _select_map(index: int) -> void:
 	_update_hud()
 
 func _request_round(level: int, map_index: int) -> void:
-	if running or transitioning or map_index < 1 or map_index > profile.unlocked_maps: return
+	if running or transitioning or not profile.can_visit_map(map_index) or level < 1 or level > 4: return
 	var entering := map_index != profile.active_map or profile.map_complete
-	if entering and level != 1: return
-	if not entering and level != profile.unlocked: return
+	if not free_stage_select:
+		if entering and level != 1: return
+		if not entering and level != profile.unlocked: return
 	transitioning = true
 	ui.show_transition(map_index,level)
-	await get_tree().create_timer(1.0).timeout
+	await get_tree().create_timer(1.8 if map_index == 1 and level >= 2 else 1.0).timeout
 	if entering:
 		profile.start_map(map_index)
+		if free_stage_select: profile.prepare_room(level)
 		selected_map = map_index
-		selected_level = 1
+		selected_level = level
 		last_result = {"entered_map":true}
-		_build_world(1)
+		_build_world(level)
 		world.process_mode = Node.PROCESS_MODE_DISABLED
-		ui.show_menu(profile,1,last_result,false,selected_map)
+		ui.show_menu(profile,level,last_result,false,selected_map)
 		_update_hud()
 	else: begin_round(level,map_index)
 	ui.hide_transition()
@@ -140,10 +149,12 @@ func _build_world(level: int) -> void:
 	eggs.clear()
 	nests.clear()
 	hens.clear()
+	snakes.clear()
 	farmer = null
 	_farmer_warning = 0.0
 	_farmer_armed = true
 	protection_left = 0.0
+	snake_immunity_left = 0.0
 	world = ArcadeWorld.new()
 	world.name = "World"
 	world.process_mode = Node.PROCESS_MODE_PAUSABLE
@@ -178,15 +189,16 @@ func _build_world(level: int) -> void:
 		nests.append(nest)
 	for i in range(3+level): _add_hen(false)
 	_spawn_batch(18+level*14)
+	_seed_snake_eggs()
 
 func begin_round(level: int, map_index := 0) -> void:
 	if running: return
 	var target_map := selected_map if map_index == 0 else map_index
-	if target_map < 1 or target_map > profile.unlocked_maps: return
+	if not profile.can_visit_map(target_map) or level < 1 or level > 4: return
 	if target_map != profile.active_map or profile.map_complete:
-		if level != 1: return
+		if not free_stage_select and level != 1: return
 		profile.start_map(target_map)
-	if level != profile.unlocked or level < 1 or level > 4: return
+	if not profile.prepare_room(level): return
 	selected_map = target_map
 	get_tree().paused = false
 	running = false
@@ -204,6 +216,7 @@ func begin_round(level: int, map_index := 0) -> void:
 	last_result = {}
 	_last_seconds_announced = false
 	running = true
+	ui._map_selected = current_map
 	ui.hide_menu()
 	ui.announce("开局保护 3 秒，先移动到合适的位置！","3 seconds of protection. Find a good starting position!")
 	_update_hud()
@@ -215,7 +228,8 @@ func _process(delta: float) -> void:
 		finish_round()
 		return
 	protection_left = maxf(0.0,protection_left-delta)
-	player.invulnerable = protection_left > 0.0
+	snake_immunity_left = maxf(0.0,snake_immunity_left-delta)
+	player.invulnerable = protection_left > 0.0 or snake_immunity_left > 0.0
 	_update_guards(delta)
 	if not running: return
 	_update_pickup_feedback(get_global_mouse_position())
@@ -270,12 +284,12 @@ func collect_at(point: Vector2) -> bool:
 	if target is ArcadeNest:
 		var nest: ArcadeNest = target
 		if not can_collect_point(nest.position):
-			ui.announce("走近草窝，再左键连续取蛋。","Move closer, then left-click the nest repeatedly.")
+			ui.announce("走近资源点，再连续点击收集。","Move closer, then left-click the resource patch.")
 			return false
 		if nest.take():
 			_award(nest.position+Vector2(0,-8),false)
 			return true
-		ui.announce("这处鸡窝正在补货，先捡地面的蛋吧。","Nest refilling. Pick up some ground eggs meanwhile.")
+		ui.announce("这里正在补货，先收集地面的物品吧。","Refilling. Collect some nearby ground items meanwhile.")
 	return false
 
 func _pickup_target_at(point: Vector2) -> Node2D:
@@ -320,8 +334,44 @@ func _collect_egg(egg: ArcadeEgg) -> void:
 	if egg.claimed or not eggs.has(egg) or not can_collect_point(egg.position): return
 	egg.claimed = true
 	eggs.erase(egg)
-	_award(egg.position,egg.golden)
+	if egg.has_snake:
+		_release_snake(egg.position)
+	else: _award(egg.position,egg.golden)
 	egg.queue_free()
+
+func _seed_snake_eggs() -> void:
+	# Fixed hidden egg count, randomized locations; no timed or forced encounters.
+	if current_map != 1 or current_level == 1: return
+	var candidates := eggs.duplicate()
+	for i in range(candidates.size()-1,0,-1):
+		var j := world.rng.randi_range(0,i)
+		var value = candidates[i]
+		candidates[i] = candidates[j]
+		candidates[j] = value
+	for i in range(mini(current_level,candidates.size())): candidates[i].has_snake = true
+
+func _release_snake(point: Vector2) -> void:
+	var snake := ArcadeSnake.new()
+	snake.position = point
+	snake.player = player
+	snake.direction = (player.position-point).normalized()
+	if snake.direction.is_zero_approx(): snake.direction = Vector2.from_angle(world.rng.randf_range(0,TAU))
+	snake.player_hit.connect(_on_snake_hit)
+	world.add_child(snake)
+	snakes.append(snake)
+	snake.tree_exiting.connect(func(): snakes.erase(snake))
+	ui.announce("小蛇蹦出来了！侧移躲开直冲！","A little snake! Sidestep its straight dash!")
+
+func _on_snake_hit() -> void:
+	if not running or player.invulnerable: return
+	var penalty := mini(3,score)
+	score -= penalty
+	chain = 0
+	combo_left = 0.0
+	snake_immunity_left = 1.2
+	player.invulnerable = true
+	ui.announce("被小蛇碰到！-%d 分，连击中断。" % penalty,"Snake bump! -%d points, chain broken." % penalty)
+	_update_hud()
 
 func _award(point: Vector2, gold: bool) -> void:
 	var units := 2 if world.rng.randf() < _buffs()[1]*0.1 else 1
@@ -441,7 +491,7 @@ func _spawn_egg_at(point: Vector2, gold: bool) -> void:
 		if not gold: return
 		var replaced := false
 		for old in eggs:
-			if not old.golden:
+			if not old.golden and not old.has_snake:
 				eggs.erase(old)
 				old.queue_free()
 				replaced = true
@@ -480,7 +530,7 @@ func finish_round(caught := false) -> void:
 	last_result = profile.settle(current_level,score,not caught)
 	last_result["eggs"] = collected
 	last_result["caught"] = caught
-	selected_map = mini(current_map+1,profile.unlocked_maps) if profile.map_complete and current_map < 4 else current_map
+	selected_map = mini(current_map+1,4 if free_stage_select else profile.unlocked_maps) if profile.map_complete and current_map < 4 else current_map
 	selected_level = 1 if profile.map_complete else profile.unlocked
 	ui.show_menu(profile,selected_level,last_result,false,selected_map)
 	_update_hud()

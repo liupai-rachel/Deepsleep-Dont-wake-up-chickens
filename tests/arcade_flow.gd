@@ -32,6 +32,7 @@ func run() -> void:
 	var profile := ArcadeProfile.new()
 	profile.save_path = SAVE_PATH
 	var game: ArcadeGame = load("res://scenes/arcade/game.tscn").instantiate()
+	game.free_stage_select = false
 	game.profile = profile
 	game.use_fixed_seed = true
 	game.guards_enabled = false

@@ -15,6 +15,8 @@ var upgrades := [0,0,0]
 var save_path := "user://coop-rush-v1.json"
 var browser_key := "coop-rush-v1"
 var saved := true
+# Temporary playtest access; never overwrites earned unlocks in the save.
+var free_selection := false
 
 func load_progress() -> void:
 	var raw := ""
@@ -35,7 +37,7 @@ func load_progress() -> void:
 	_read_array(data,"upgrades",upgrades,5)
 	if version == 2:
 		unlocked_maps = _safe_int(data.get("unlocked_maps"),1,4)
-		active_map = _safe_int(data.get("active_map"),1,unlocked_maps)
+		active_map = _safe_int(data.get("active_map"),1,4 if free_selection else unlocked_maps)
 		map_complete = data.get("map_complete",false) == true
 		_read_array(data,"map_best",map_best,40000000)
 		_read_array(data,"run_scores",run_scores,10000000)
@@ -68,7 +70,7 @@ func save_progress() -> bool:
 	return saved
 
 func start_map(index: int) -> bool:
-	if index < 1 or index > unlocked_maps: return false
+	if not can_visit_map(index): return false
 	active_map = index
 	unlocked = 1
 	map_complete = false
@@ -77,6 +79,17 @@ func start_map(index: int) -> bool:
 	# Coins are a permanent wallet. Only the map's buffs and run progress reset.
 	save_progress()
 	return true
+
+func can_visit_map(index: int) -> bool:
+	return index >= 1 and index <= (4 if free_selection else unlocked_maps)
+
+func prepare_room(level: int) -> bool:
+	if level < 1 or level > 4: return false
+	if free_selection:
+		unlocked = level
+		map_complete = false
+		return true
+	return level == unlocked and not map_complete
 
 func cost(index: int) -> int:
 	return COSTS[upgrades[index]] if index >= 0 and index < 3 and upgrades[index] < 5 else -1

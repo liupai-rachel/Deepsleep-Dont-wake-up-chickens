@@ -2,7 +2,7 @@
 
 [简体中文](README.md)
 
-A pixel-art browser collection game with **4 maps × 4 rooms = 16 stages**. Collect as much as possible in each 60-second room and spend earned coins on upgrades.
+A pixel-art browser collection game with **4 maps × 4 rooms = 16 stages**. Collect as much as possible in each 60-second room and spend earned coins on upgrades. The current playtest exposes all 16 rooms immediately.
 
 - **Manual collection:** left-click reachable eggs or repeatedly left-click an open straw nest. Ground eggs are slightly larger, and clicks within 24 screen pixels select a nearby eligible egg. Assistance obeys player reach and cover; proximity never auto-collects. WASD/arrows move; Esc pauses. Audio is currently disabled.
 - **Fair starts and patrols:** the first three seconds protect the player from hen sight, clucks, alert gains and capture. Hens start in all four quadrants and repeatedly shuffle global destinations, with navigation around cover and recovery from blocked routes.
@@ -33,4 +33,10 @@ Pacing pass: stage one has four patrolling hens, followed by one additional ordi
 
 Combo feedback follows the player rather than occupying the top HUD. Every fifth pickup triggers a short scaling pop, golden sparks and encouragement. Future scattered powerups are designed in [ITEM_DESIGN.md](ITEM_DESIGN.md); they are not implemented yet.
 
-The snake-egg trap remains a visual proposal and is not implemented. See [GAME_FRAMEWORK.md](GAME_FRAMEWORK.md) and [VISUAL_PLAN.md](VISUAL_PLAN.md).
+Snake eggs are implemented in chicken rooms 2–4. See [GAME_FRAMEWORK.md](GAME_FRAMEWORK.md) and [VISUAL_PLAN.md](VISUAL_PLAN.md).
+
+Chicken room one has no snakes; rooms two, three and four randomly hide exactly 2, 3 and 4 snake eggs among their initial ground eggs. Only collection triggers them; there is no timed encounter schedule. A warning transition precedes those rooms. After a 0.38s shell burst, snakes dash in one fixed direction, stop at cover/walls, and never home toward the player. Contact costs at most three score points, breaks the chain and grants 1.2s protection without ending the run or deducting coins.
+
+New animal and resource art shares a pixel-grid shader with hard alpha and color steps. Garden nests become fenced soil beds with individual growing cabbages and soil particles; ground cabbages also sprout. Growth is visual and never blocks collection. Net-displacement recovery fixes ordinary and golden animals jittering at crate corners.
+
+`ArcadeGame.free_stage_select` defaults to true for testing. Set it to false for the original sequential progression. Map entry still resets buffs and keeps coins; picking another room within the same map keeps buffs. Additional regressions: `tests/snake_playtest.gd` and `tests/patrol_recovery.gd`.

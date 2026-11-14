@@ -8,6 +8,9 @@ var number := 1
 var theme_index := 0
 var font := preload("res://assets/fonts/CoopUI.ttf")
 
+func _ready() -> void:
+	if theme_index > 0: material = ThemeSprites.item_material(theme_index)
+
 func _process(delta: float) -> void:
 	age += delta
 	if age >= 0.42:

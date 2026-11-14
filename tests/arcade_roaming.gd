@@ -17,6 +17,7 @@ func tick(frames: int) -> void:
 func run() -> void:
 	root.size = Vector2i(960,540)
 	var game: ArcadeGame = load("res://scenes/arcade/game.tscn").instantiate()
+	game.free_stage_select = false
 	game.profile = ArcadeProfile.new()
 	game.profile.save_path = SAVE_PATH
 	game.profile.unlocked = 4

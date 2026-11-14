@@ -36,6 +36,7 @@ var _selected := 1
 var _map_selected := 1
 var primary_button: Button
 var map_buttons: Array[Button] = []
+var room_buttons: Array[Button] = []
 var upgrade_buttons: Array[Button] = []
 var transition_screen: ColorRect
 var transition_thief: CoopCharacterArt
@@ -195,7 +196,7 @@ func update_game(score: int, eggs: int, chain: int, multiplier: int, combo_left:
 	combo_anchor.visible = chain >= 2 and not overlay.visible
 	combo_bar.value = combo_left
 	stage_label.text = "%s %d-%d" % [ArcadeThemes.name_for(_map_selected,language),_map_selected,level]
-	hint.text = tr2("左键收集附近物品 / 连点草窝　 WASD 移动","Left-click nearby items / nests   WASD move")
+	hint.text = tr2("左键收集附近物品 / 连点资源点　 WASD 移动","Left-click nearby items / patches   WASD move")
 
 func show_menu(profile: ArcadeProfile, selected: int, result := {}, paused := false, map_index := 0) -> void:
 	_profile = profile
@@ -204,6 +205,7 @@ func show_menu(profile: ArcadeProfile, selected: int, result := {}, paused := fa
 	_result = result
 	_paused = paused
 	map_buttons.clear()
+	room_buttons.clear()
 	upgrade_buttons.clear()
 	for child in overlay.get_children():
 		overlay.remove_child(child)
@@ -217,14 +219,14 @@ func show_menu(profile: ArcadeProfile, selected: int, result := {}, paused := fa
 	panel.size = Vector2(776,496)
 	panel.add_theme_stylebox_override("panel",_style(Color("0b1224"),Color("d3a859"),2))
 	overlay.add_child(panel)
-	var title := tr2("夜访农场 · 四图闯关","NIGHT FARM · HARVEST RUN")
+	var title := tr2("夜访农场 · 自由试玩","NIGHT FARM · FREE PLAY") if profile.free_selection else tr2("夜访农场 · 四图闯关","NIGHT FARM · HARVEST RUN")
 	if paused: title = tr2("休息一下","PAUSED")
 	elif result.get("entered_map",false): title = tr2("行前准备","READY FOR A NEW MAP")
 	elif result.get("map_complete",false): title = tr2("四图全部通关！","ALL FOUR MAPS CLEARED!") if profile.cleared.all(func(value): return value) else tr2("地图通关！","MAP COMPLETE!")
 	elif result.get("caught",false): title = tr2("被农夫抓住 · 可重试本关","CAUGHT · TRY THIS ROOM AGAIN")
 	elif result.has("score"): title = tr2("小关完成 · 购买增益再出发","ROOM COMPLETE · UPGRADE & GO")
 	_label(panel,Rect2(18,8,740,39),title,25 if language == "zh" else 21)
-	var summary := tr2("四张地图，每图四个小关；金币跨图保留，增益换图清零。","4 maps × 4 rooms. Keep coins between maps; buffs reset.")
+	var summary := tr2("试玩模式：全部地图和小关可直接选择；金币保留，换图增益清零。","Playtest: pick any map and room. Keep coins; reset buffs on map entry.") if profile.free_selection else tr2("四张地图，每图四个小关；金币跨图保留，增益换图清零。","4 maps × 4 rooms. Keep coins between maps; buffs reset.")
 	if result.has("score"):
 		summary = tr2("%d-%d 得分 %d　收集 %d　奖励 %d 币","%d-%d  Score %d   Items %d   +%d coins") % [result.get("map",1),result.level,result.score,result.get("eggs",0),result.reward]
 		if result.get("map_complete",false): summary += tr2("　地图总分 %d","   Map total %d") % result.get("total",0)
@@ -232,20 +234,23 @@ func show_menu(profile: ArcadeProfile, selected: int, result := {}, paused := fa
 	_label(panel,Rect2(16,49,744,27),summary,14)
 	for i in range(4):
 		var index := i+1
-		var state := tr2("未解锁","Locked") if index > profile.unlocked_maps else (tr2("已通关","Cleared") if profile.cleared[i] else tr2("已解锁","Unlocked"))
+		var state := tr2("试玩开放","Open to test") if profile.free_selection else tr2("未解锁","Locked") if index > profile.unlocked_maps else (tr2("已通关","Cleared") if profile.cleared[i] else tr2("已解锁","Unlocked"))
 		var button := _button(panel,Rect2(24+i*184,82,174,51),"%d %s\n%s" % [index,ArcadeThemes.name_for(index,language),state],func(): map_selection_changed.emit(index))
 		button.add_theme_font_size_override("font_size",15)
-		button.disabled = paused or index > profile.unlocked_maps
+		button.disabled = paused or not profile.can_visit_map(index)
 		if index == _map_selected: button.add_theme_stylebox_override("normal",_style(Color("584127"),Color("ffe0a0"),2))
 		map_buttons.append(button)
 	var active := _map_selected == profile.active_map
-	var room := profile.unlocked if active and not profile.map_complete else 1
+	var room := _selected if profile.free_selection else (profile.unlocked if active and not profile.map_complete else 1)
 	for i in range(4):
 		var level := i+1
 		var state := tr2("已完成","Done") if active and profile.map_complete else (tr2("待进入","Next") if level == room else (tr2("已完成","Done") if active and level < profile.unlocked else tr2("未解锁","Locked")))
+		if profile.free_selection: state = tr2("已选","Selected") if level == room else tr2("试玩","Test")
 		var button := _button(panel,Rect2(24+i*184,143,174,34),"%d-%d  %s" % [_map_selected,level,state],func(): selection_changed.emit(level))
 		button.add_theme_font_size_override("font_size",14)
-		button.disabled = paused or not active or profile.map_complete or level != room
+		button.disabled = paused or (not profile.free_selection and (not active or profile.map_complete or level != room))
+		if profile.free_selection and level == room: button.add_theme_stylebox_override("normal",_style(Color("584127"),Color("ffe0a0"),2))
+		room_buttons.append(button)
 	_label(panel,Rect2(18,186,740,26),tr2("金币 %d（跨图保留）　｜　本图最高总分 %d","Coins %d (keep across maps)   |   Map best %d") % [profile.coins,profile.map_best[_map_selected-1]],16)
 	var shop_enabled := active and not profile.map_complete and not paused
 	var names := [tr2("连收范围","Gather radius"),tr2("额外收获","Bonus yield"),tr2("资源窝补货","Nest refill")]
@@ -259,10 +264,11 @@ func show_menu(profile: ArcadeProfile, selected: int, result := {}, paused := fa
 		var button := _button(panel,Rect2(28+i*248,276,224,32),tr2("已满级","MAX") if price < 0 else tr2("升级 · %d 币","Upgrade · %d coins") % price,func(): upgrade_requested.emit(index))
 		button.disabled = not shop_enabled or price < 0 or profile.coins < price
 		upgrade_buttons.append(button)
-	_label(panel,Rect2(18,320,740,43),tr2("WASD 移动 · 左键收集附近物品 · Esc 暂停\n每小关 60 秒，开局保护 3 秒；躲开动物的扇形视野。","WASD move · Left-click nearby items · Esc pause\n60 seconds per room, 3s start protection. Avoid animal sight cones."),14)
+	_label(panel,Rect2(18,320,740,43),tr2("WASD 移动 · 左键收集附近物品 · Esc 暂停\n每小关 60 秒；鸡舍 2～4 关有蛇蛋，捡到后侧移躲开。","WASD move · Left-click nearby items · Esc pause\n60s per room. Chicken rooms 2–4 hide snake eggs: sidestep the dash."),14)
 	_label(panel,Rect2(18,368,740,22),tr2("金币永久保留　｜　进入新地图或重开此图：仅增益与本轮进度清零","Keep your wallet. Entering/restarting a map resets buffs and its run only."),12)
 	if not profile.saved: _label(panel,Rect2(18,391,740,20),tr2("当前无法保存进度，请保持页面打开。","Storage unavailable. Keep this page open."),12)
 	var caption := tr2("继续游戏","Resume") if paused else (tr2("出发：%d-%d · %d 秒","Play %d-%d · %d seconds") % [_map_selected,room,round_duration] if active and not profile.map_complete else tr2("进入 %s · 金币保留，增益归零","Enter %s · keep coins, reset buffs") % ArcadeThemes.name_for(_map_selected,language))
+	if profile.free_selection and not paused: caption = tr2("试玩：%d-%d · 60 秒","Playtest %d-%d · 60 seconds") % [_map_selected,room]
 	primary_button = _button(panel,Rect2(24,423,500,44),caption,func():
 		if _paused: pause_requested.emit()
 		else: start_requested.emit(room,_map_selected))
@@ -291,8 +297,16 @@ func show_transition(map_index: int, level: int) -> void:
 	transition_screen.show()
 	_label(transition_screen,Rect2(140,145,680,60),ArcadeThemes.name_for(map_index,language),42)
 	_label(transition_screen,Rect2(140,217,680,42),tr2("第 %d-%d 小关","ROOM %d-%d") % [map_index,level],25)
-	_label(transition_screen,Rect2(140,277,680,30),tr2("提好袋子，准备出发……","Pack your bag. A fresh harvest awaits."),18)
-	_label(transition_screen,Rect2(140,338,680,28),tr2("金币随身带走，增益在本地图内累积","Keep your coins. Build buffs within this map."),15)
+	var snake_room := map_index == 1 and level >= 2
+	_label(transition_screen,Rect2(140,277,680,30),tr2("小心！有小蛇出没！","WATCH OUT! LITTLE SNAKES AHEAD!") if snake_room else tr2("提好袋子，准备出发……","Pack your bag. A fresh harvest awaits."),22 if snake_room else 18)
+	if snake_room:
+		_label(transition_screen,Rect2(100,314,760,25),tr2("蛇藏在随机地面蛋里；破壳后沿固定方向直冲，记得侧移！","Random ground eggs hide snakes. Shell bursts, then a straight dash. Sidestep!"),14)
+		var snake := ArcadeSnake.new()
+		snake.preview = true
+		snake.position = Vector2(490,415)
+		snake.scale = Vector2.ONE*1.8
+		transition_screen.add_child(snake)
+	_label(transition_screen,Rect2(140,477,680,28),tr2("金币随身带走，增益在本地图内累积","Keep your coins. Build buffs within this map."),15)
 	transition_thief = CoopCharacterArt.new()
 	transition_thief.character = 0
 	transition_thief.sprite_height = 62

@@ -2,7 +2,7 @@
 
 [English](README.en.md)
 
-单人像素风网页收集游戏，**4 张地图 × 每图 4 小关，共 16 关**。每小关 60 秒，尽可能多地收集物品，再用金币升级。
+单人像素风网页收集游戏，**4 张地图 × 每图 4 小关，共 16 关**。每小关 60 秒，尽可能多地收集物品，再用金币升级。当前是**自由试玩版，四图十六关全部可直接选择**，无需逐关等候解锁。
 
 - **手动拾取**：左键点击玩家附近的地面蛋，或连续左键点击附近的开放式草窝。散落蛋稍微放大，点击中心附近 24 屏幕像素内也能选取；范围外和木箱后方的蛋不可拾取，靠近不自动捡。WASD／方向键移动，Esc 暂停。音效暂时关闭。
 - **开局保护与巡逻**：每局前 3 秒可以放心走位，鸡不会因看到玩家而鸣叫或增加警戒。鸡分散出生，每轮随机走遍四个区域，不再只绕着出生点巡视。
@@ -22,6 +22,8 @@ godot --headless --path . --import
 godot --headless --path . --fixed-fps 60 --script tests/arcade_flow.gd
 godot --headless --path . --fixed-fps 60 --script tests/arcade_roaming.gd
 godot --headless --path . --fixed-fps 60 --script tests/map_progression.gd
+godot --headless --path . --fixed-fps 60 --script tests/snake_playtest.gd
+godot --headless --path . --fixed-fps 60 --script tests/patrol_recovery.gd
 godot --headless --path . --export-release Web build/web/index.html
 ```
 
@@ -33,4 +35,10 @@ godot --headless --path . --export-release Web build/web/index.html
 
 本轮节奏调优：第一关 4 只巡逻鸡；脚下改为小范围淡黄色柔光，鼠标悬停时高亮可拾取目标。角色上下移动使用正背面四帧跑步，最后 10 秒提供提示。黄金鸡在 30 秒出现，第四关 45 秒追加一只。
 
-[四图十六关规则](GAME_FRAMEWORK.md) · [视觉与蛇蛋后续方案](VISUAL_PLAN.md)。蛇蛋机制尚未接入。
+[四图十六关规则](GAME_FRAMEWORK.md) · [视觉与蛇蛋后续方案](VISUAL_PLAN.md)。蛇蛋现已接入鸡舍第 2～4 小关。
+
+本次试玩更新：鸡舍第一小关无蛇，第 2／3／4 小关开局分别将 2／3／4 枚地面蛋随机设为隐藏蛇蛋，外观与普通蛋相同。不按时间定时出现，没捡到就不触发，黄金物品也不会挤掉这些蛋。进场前有“小心！有小蛇出没”的动画提示。点击后约 0.38 秒破壳预警，再朝拾取时锁定的方向直冲；小蛇不追踪，撞木箱／墙或超时后消失。被碰到扣至多 3 分、断连并获得 1.2 秒保护，不扣金币、不结束本局。
+
+绵羊、松鼠、小狗及其收集物使用统一像素网格、硬边透明度和分色；菜园资源点改为围栏内的土畦，包菜逐颗从土里冒出，地面新包菜也有生长与泥土粒子。动画不增加拾取等待。巡逻新增按实际位移检测的拐角脱困，修复黄金羊及其他动物在掩体边抖动不走的问题。
+
+自由试玩只绕过选关限制，不把地图解锁数直接改成四。切换地图仍重置增益、保留金币；同图切换小关保留当前增益。正式顺序模式可将 `ArcadeGame.free_stage_select` 设为 `false`，原有顺序流程仍有回归测试。
