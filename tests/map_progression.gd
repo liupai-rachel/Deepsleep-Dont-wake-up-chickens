@@ -29,14 +29,15 @@ func run() -> void:
 		if map_index > 1:
 			var wallet := game.profile.coins
 			expect(game.profile.unlocked_maps >= map_index,"Clearing a fourth room must unlock the next map")
+			game._select_map(map_index)
+			game._buy_upgrade(0)
+			expect(not game.running and game.profile.active_map == map_index,"The menu must sell new-map buffs before starting, without an extra start screen")
+			expect(game.profile.coins == wallet-20 and game.profile.upgrades == [1,0,0],"Entry-shop purchase must preserve the wallet minus its price and reset old-map buffs")
 			game._request_round(1,map_index)
 			expect(game.transitioning and not game.running,"Map entry must run a non-gameplay transition")
 			await tick(70)
-			expect(not game.running and game.ui.overlay.visible,"A new map must allow buying buffs before its first room")
-			expect(game.profile.active_map == map_index and game.profile.coins == wallet,"Entering the next map must preserve every coin")
-			expect(game.profile.upgrades == [0,0,0],"Entering a new map must clear only buffs")
-			var entry_price := game.profile.cost(0)
-			expect(game.profile.buy(0) and game.profile.coins == wallet-entry_price,"Carried coins must buy a new map buff before playing")
+			expect(game.running and not game.ui.overlay.visible,"One start click must enter the next map after its transition")
+
 		for room in range(1,5):
 			var buffs := game.profile.upgrades.duplicate()
 			game.begin_round(room,map_index)

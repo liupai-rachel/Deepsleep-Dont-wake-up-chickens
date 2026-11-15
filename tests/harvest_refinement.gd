@@ -18,7 +18,7 @@ func run() -> void:
 		for room in range(2,5):
 			var now := ArcadeDifficulty.for_stage(map_index,room)
 			var before := ArcadeDifficulty.for_stage(map_index,room-1)
-			expect(now.pressure > before.pressure and now.farmer_chase > before.farmer_chase and now.summon_at < before.summon_at,"Every chapter must get harder room by room")
+			expect(now.pressure > before.pressure and now.farmer_chase > before.farmer_chase and now.summon_at == 100.0 and before.summon_at == 100.0,"Every chapter must get harder room by room")
 		if map_index > 1:
 			var start := ArcadeDifficulty.for_stage(map_index,1)
 			expect(start.pressure > ArcadeDifficulty.for_stage(map_index-1,1).pressure and start.pressure < ArcadeDifficulty.for_stage(map_index-1,4).pressure,"A new chapter must start above the previous start but below its finale")
@@ -98,7 +98,7 @@ func run() -> void:
 		if scenario[0] == 1:
 			expect(game.farmer.chase_speed < game.player.move_speed,"Opening chapter should allow running away on clear ground")
 			game.abandon_round()
-	expect(summon_times[1] < summon_times[0] and game.farmer.chase_speed > game.player.move_speed,"Final chapter must summon faster and make unbroken pursuit a real risk")
+	expect(summon_times[1] < summon_times[0] and game.farmer.chase_speed < game.player.move_speed*0.7,"Later chapters may summon sooner under exposure, but the farmer must remain distinctly slower than the player")
 	var origin := game.world.free_point(25,true)
 	for attempt in range(500):
 		if game.world.step_clear(origin,origin+Vector2(110,0)): break

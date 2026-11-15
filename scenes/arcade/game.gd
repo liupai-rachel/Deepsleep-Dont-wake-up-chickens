@@ -5,6 +5,7 @@ const PLAYER := preload("res://scenes/player.tscn")
 const AUDIO := preload("res://scenes/round_audio.tscn")
 const CHICKEN := preload("res://scenes/chicken.tscn")
 const FARMER := preload("res://scenes/farmer.tscn")
+const FARMER_SCRIPT := preload("res://scenes/arcade/farmer.gd")
 const HEN_SCRIPT := preload("res://scenes/arcade/hen.gd")
 const RANGE_SCRIPT := preload("res://scenes/arcade/pickup_range.gd")
 const EFFECT := preload("res://scenes/arcade/effect.gd")
@@ -40,10 +41,11 @@ var spawn_left := 0.0
 var golden_count := 0
 var last_result := {}
 var alert: CoopAlert
-var farmer: CoopFarmer
+var farmer: ArcadeFarmer
 var pickup_circle: Node2D
 var _farmer_warning := 0.0
 var _farmer_armed := true
+var _farmer_cooldown_left := 0.0
 var _reported_position := Vector2.ZERO
 var _last_seconds_announced := false
 var protection_left := 0.0
@@ -101,8 +103,17 @@ func _select_level(level: int) -> void:
 	_update_hud()
 
 func _buy_upgrade(index: int) -> void:
-	if running or transitioning or selected_map != profile.active_map: return
+	if running or transitioning or index < 0 or index > 2 or not profile.can_visit_map(selected_map): return
+	var entering := selected_map != profile.active_map or profile.map_complete
+	var price: int = ArcadeProfile.COSTS[0] if entering else profile.cost(index)
+	if price < 0 or profile.coins < price: return
+	if entering:
+		profile.start_map(selected_map)
+		if free_stage_select: profile.prepare_room(selected_level)
+		last_result = {"entered_map":true}
 	profile.buy(index)
+	_build_world(selected_level)
+	world.process_mode = Node.PROCESS_MODE_DISABLED
 	ui.show_menu(profile,selected_level,last_result,false,selected_map)
 
 func _select_map(index: int) -> void:
@@ -123,17 +134,7 @@ func _request_round(level: int, map_index: int) -> void:
 	transitioning = true
 	ui.show_transition(map_index,level)
 	await get_tree().create_timer(1.8 if map_index == 1 and level >= 2 else 1.0).timeout
-	if entering:
-		profile.start_map(map_index)
-		if free_stage_select: profile.prepare_room(level)
-		selected_map = map_index
-		selected_level = level
-		last_result = {"entered_map":true}
-		_build_world(level)
-		world.process_mode = Node.PROCESS_MODE_DISABLED
-		ui.show_menu(profile,level,last_result,false,selected_map)
-		_update_hud()
-	else: begin_round(level,map_index)
+	begin_round(level,map_index)
 	ui.hide_transition()
 	transitioning = false
 
@@ -163,6 +164,7 @@ func _build_world(level: int) -> void:
 	_reset_shake()
 	_farmer_warning = 0.0
 	_farmer_armed = true
+	_farmer_cooldown_left = 0.0
 	protection_left = 0.0
 	snake_immunity_left = 0.0
 	world = ArcadeWorld.new()
@@ -288,15 +290,12 @@ func collect_at(point: Vector2) -> bool:
 	var target := _pickup_target_at(point)
 	if target is ArcadeEgg:
 		var closest: ArcadeEgg = target
-		var origin := closest.position
 		if not can_collect_point(closest.position):
 			ui.announce("只能收集身边的物品；被木箱挡住时请绕过去。","Move closer; crates can block a pickup.")
 			return false
-		_collect_egg(closest)
-		if _buffs()[0] > 0:
-			var radius: float = (18 + _buffs()[0]*12) / camera.zoom.x
-			for other: ArcadeEgg in eggs.duplicate():
-				if other.position.distance_squared_to(origin) <= radius*radius and can_collect_point(other.position): _collect_egg(other)
+		# The player's ring is the collection area, regardless of the clicked egg.
+		for other: ArcadeEgg in eggs.duplicate():
+			if can_collect_point(other.position): _collect_egg(other)
 		return true
 	if target is ArcadeNest:
 		var nest: ArcadeNest = target
@@ -337,7 +336,7 @@ func _update_pickup_feedback(point: Vector2) -> void:
 	if target is ArcadeNest and target.stock <= 0: reachable = false
 	for egg in eggs:
 		egg.modulate.a = 1.0 if can_collect_point(egg.position) else 0.68
-		egg.highlighted = reachable and egg == target
+		egg.highlighted = reachable and target is ArcadeEgg and can_collect_point(egg.position)
 	for nest in nests:
 		nest.highlighted = reachable and nest == target
 	Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND if reachable else Input.CURSOR_ARROW)
@@ -459,6 +458,7 @@ func can_collect_point(point: Vector2) -> bool:
 
 func _update_guards(delta: float) -> void:
 	_detection_cooldown = maxf(0.0,_detection_cooldown-delta)
+	_farmer_cooldown_left = maxf(0.0,_farmer_cooldown_left-delta)
 	if not guards_enabled: return
 	if player.invulnerable:
 		_was_seen = false
@@ -479,14 +479,9 @@ func _update_guards(delta: float) -> void:
 	_was_seen = detected
 	if seen > 0: _reported_position = player.position
 	alert.advance(delta,seen,clucks,is_instance_valid(farmer) and farmer.sees_player)
-	ui.update_danger(alert.level,seen > 0,is_instance_valid(farmer))
-	if is_instance_valid(farmer):
-		if seen > 0 and not farmer.sees_player:
-			farmer.last_known_position = _reported_position
-			farmer._search_index = -1
-			farmer._search_elapsed = 0.0
-			farmer.state = CoopFarmer.State.SEARCHING
-		return
+	ui.update_danger(alert.level,seen > 0,is_instance_valid(farmer) and not farmer.leaving)
+	if is_instance_valid(farmer): return
+	if _farmer_cooldown_left > 0.0: return
 	if _farmer_warning > 0.0:
 		_farmer_warning = maxf(0,_farmer_warning-delta)
 		if _farmer_warning == 0.0: _spawn_farmer()
@@ -499,7 +494,9 @@ func _update_guards(delta: float) -> void:
 		ui.announce("警戒升高，农夫即将从北侧入场！","High alert! The farmer is coming from the north!")
 
 func _spawn_farmer() -> void:
-	farmer = FARMER.instantiate()
+	var actor = FARMER.instantiate()
+	actor.set_script(FARMER_SCRIPT)
+	farmer = actor
 	farmer.player = player
 	farmer.alert = alert
 	farmer.chase_speed = stage_settings.farmer_chase
@@ -511,14 +508,24 @@ func _spawn_farmer() -> void:
 	farmer.home_position = farmer.position
 	farmer.last_known_position = _reported_position
 	farmer.player_caught.connect(func(): finish_round(true))
+	farmer.player_lost.connect(_farmer_lost_player)
 	farmer.departed.connect(_farmer_departed)
 	world.add_child(farmer)
 	ui.announce("农夫正在搜寻，利用木箱躲开视线！","Farmer searching! Break sight behind crates!")
 
+func _farmer_lost_player() -> void:
+	alert.level = minf(alert.level,40.0)
+	_farmer_cooldown_left = 8.0
+	_farmer_warning = 0.0
+	_farmer_armed = true
+	ui.announce("甩开农夫了！他已放弃追赶，趁现在继续收集。","You lost the farmer! He's giving up. Keep collecting.")
+	ui.update_danger(alert.level,false,false)
+
 func _farmer_departed() -> void:
 	if is_instance_valid(farmer): farmer.queue_free()
 	farmer = null
-	_farmer_armed = alert.level < stage_settings.summon_at
+	_farmer_cooldown_left = maxf(_farmer_cooldown_left,6.0)
+	_farmer_armed = true
 
 func _spawn_batch(count: int) -> void:
 	var maximum := 48+current_level*18

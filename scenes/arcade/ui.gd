@@ -227,7 +227,7 @@ func update_game(score: int, eggs: int, chain: int, multiplier: int, combo_left:
 	combo_anchor.visible = chain >= 2 and not overlay.visible and _reaction_left == 0.0
 	combo_bar.value = combo_left
 	stage_label.text = "%s %d-%d" % [ArcadeThemes.name_for(_map_selected,language),_map_selected,level]
-	hint.text = tr2("左键收集附近物品 / 连点资源点　 WASD 移动","Left-click nearby items / patches   WASD move")
+	hint.text = tr2("点圈内物品收整圈 / 连点资源点　 WASD 移动","Click an item to gather the ring / patches   WASD move")
 
 func show_menu(profile: ArcadeProfile, selected: int, result := {}, paused := false, map_index := 0) -> void:
 	_profile = profile
@@ -286,20 +286,20 @@ func show_menu(profile: ArcadeProfile, selected: int, result := {}, paused := fa
 		if profile.free_selection and level == room: button.add_theme_stylebox_override("normal",_style(Color("584127"),Color("ffe0a0"),2))
 		room_buttons.append(button)
 	_label(panel,Rect2(18,186,740,26),tr2("金币 %d（跨图保留）　｜　本图最高总分 %d","Coins %d (keep across maps)   |   Map best %d") % [profile.coins,profile.map_best[_map_selected-1]],16)
-	var shop_enabled := active and not profile.map_complete and not paused
-	var names := [tr2("连收范围","Gather radius"),tr2("额外收获","Bonus yield"),tr2("资源窝补货","Nest refill")]
-	var details := [tr2("扩大拾取圈与连收范围","More reach and nearby items"),tr2("每级增加 10% 双份概率","+10% extra yield chance per level"),tr2("缩短空草窝的补货间隔","Empty nests refill sooner")]
+	var shop_enabled := not paused and profile.can_visit_map(_map_selected)
+	var names := [tr2("拾取范围","Pickup reach"),tr2("额外收获","Bonus yield"),tr2("资源窝补货","Nest refill")]
+	var details := [tr2("扩大整圈拾取的半径","Increase the whole pickup radius"),tr2("每级增加 10% 双份概率","+10% extra yield chance per level"),tr2("缩短空草窝的补货间隔","Empty nests refill sooner")]
 	for i in range(3):
 		var index := i
-		var grade: int = profile.upgrades[i] if shop_enabled or (active and paused) else 0
+		var grade: int = profile.upgrades[i] if active and not profile.map_complete else 0
 		var price := profile.cost(i) if active and not profile.map_complete else ArcadeProfile.COSTS[0]
 		_label(panel,Rect2(20+i*248,220,240,25),"%s  Lv.%d" % [names[i],grade],16)
 		_label(panel,Rect2(20+i*248,247,240,22),details[i],12)
 		var button := _button(panel,Rect2(28+i*248,276,224,32),tr2("已满级","MAX") if price < 0 else tr2("升级 · %d 币","Upgrade · %d coins") % price,func(): upgrade_requested.emit(index))
 		button.disabled = not shop_enabled or price < 0 or profile.coins < price
 		upgrade_buttons.append(button)
-	_label(panel,Rect2(18,320,740,43),tr2("WASD 移动 · 左键收集附近物品 · Esc 暂停\n每小关 60 秒；鸡舍 2～4 关有蛇蛋，捡到后侧移躲开。","WASD move · Left-click nearby items · Esc pause\n60s per room. Chicken rooms 2–4 hide snake eggs: sidestep the dash."),14)
-	_label(panel,Rect2(18,368,740,22),tr2("金币永久保留　｜　进入新地图或重开此图：仅增益与本轮进度清零","Keep your wallet. Entering/restarting a map resets buffs and its run only."),12)
+	_label(panel,Rect2(18,320,740,43),tr2("WASD 移动 · 点击圈内物品收整圈 · Esc 暂停\n每小关 60 秒；鸡舍 2～4 关有蛇蛋，捡到后侧移躲开。","WASD move · Click an item to gather the ring · Esc pause\n60s per room. Chicken rooms 2–4 hide snake eggs: sidestep the dash."),14)
+	_label(panel,Rect2(18,368,740,22),tr2("金币保留｜换图出发或购买新图增益时，旧图增益归零；开始只需点一次","Keep coins. Starting/buying in a new map resets buffs. Start needs one click."),12)
 	if not profile.saved: _label(panel,Rect2(18,391,740,20),tr2("当前无法保存进度，请保持页面打开。","Storage unavailable. Keep this page open."),12)
 	var caption := tr2("继续游戏","Resume") if paused else (tr2("出发：%d-%d · %d 秒","Play %d-%d · %d seconds") % [_map_selected,room,round_duration] if active and not profile.map_complete else tr2("进入 %s · 金币保留，增益归零","Enter %s · keep coins, reset buffs") % ArcadeThemes.name_for(_map_selected,language))
 	if profile.free_selection and not paused: caption = tr2("试玩：%d-%d · 60 秒","Playtest %d-%d · 60 seconds") % [_map_selected,room]

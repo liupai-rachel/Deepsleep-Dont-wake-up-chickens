@@ -33,7 +33,7 @@ func run() -> void:
 	expect(game.selected_map == 4 and game.selected_level == 4 and game.ui.room_buttons.all(func(b): return not b.disabled),"All four room buttons must work even in a never-unlocked map")
 	game._request_round(4,4)
 	await tick(70)
-	expect(not game.running and game.profile.coins == 100 and game.selected_level == 4,"Jumping to map four/room four must preserve wallet and offer the entry shop")
+	expect(game.running and game.profile.coins == 100 and game.selected_level == 4,"One start click on map four/room four must preserve the wallet and begin play")
 	game.begin_round(4,4)
 	expect(game.running and game.current_map == 4 and game.current_level == 4,"The selected non-first room must actually launch")
 	game.abandon_round()
@@ -53,6 +53,10 @@ func run() -> void:
 	game._spawn_egg_at(game.world.free_point(18,true),true)
 	expect(hidden_count(game) == 2,"A golden reward at the ground cap must not replace a hidden snake egg")
 	var egg: ArcadeEgg = game.eggs.filter(func(value): return value.has_snake)[0]
+	for other: ArcadeEgg in game.eggs.duplicate():
+		if other != egg:
+			game.eggs.erase(other)
+			other.queue_free()
 	game.player.position = egg.position
 	game.score = 10
 	game.chain = 9
