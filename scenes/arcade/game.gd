@@ -439,6 +439,7 @@ func _add_hen(gold: bool) -> void:
 	hen.patrol_speed = stage_settings.patrol_speed*(1.08 if gold else 1.0)
 	hen.waypoint_pause = 0.6
 	hen.vision_distance = stage_settings.vision
+	hen.vision_angle = stage_settings.vision_angle
 	hen.set_patrol_seed(world.rng.randi())
 	world.add_child(hen)
 	hens.append(hen)
