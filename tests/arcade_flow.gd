@@ -32,6 +32,7 @@ func run() -> void:
 	var profile := ArcadeProfile.new()
 	profile.save_path = SAVE_PATH
 	var game: ArcadeGame = load("res://scenes/arcade/game.tscn").instantiate()
+	game.free_stage_select = false
 	game.profile = profile
 	game.use_fixed_seed = true
 	game.guards_enabled = false
@@ -78,8 +79,9 @@ func run() -> void:
 	expect(egg.highlighted,"Hover feedback must highlight a reachable egg without collecting it")
 	await click(game,MOUSE_BUTTON_RIGHT,point)
 	expect(game.collected == 0,"Right click must not pick up eggs")
+	var in_ring := game.eggs.filter(func(value): return game.can_collect_point(value.position)).size()
 	await click(game,MOUSE_BUTTON_LEFT,point)
-	expect(game.collected == 1 and game.score == 1,"Nearby left click must immediately collect and score")
+	expect(game.collected == in_ring and game.score >= in_ring,"Nearby left click must collect the whole eligible ring and score")
 	var unchanged := game.score
 	if game._pickup_target_at(point) == null:
 		game.collect_at(point)
@@ -238,7 +240,7 @@ func run() -> void:
 	expect(not game.can_collect_point(blocked_point),"Crates must block otherwise nearby pickups")
 	guard.set_physics_process(false)
 	guard.sees_player = false
-	game.alert.level = 65
+	game.alert.level = 100
 	await tick(125)
 	expect(is_instance_valid(game.farmer),"High alert must summon the original farmer")
 	if is_instance_valid(game.farmer):

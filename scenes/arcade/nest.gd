@@ -9,41 +9,59 @@ var refill_speed := 1.0
 var rng := RandomNumberGenerator.new()
 var tray: Node2D
 var badge: Label
+var theme_index := 0
+var plant_growth: Array[float] = []
 var highlighted := false:
 	set(value):
 		highlighted = value
 		modulate = Color(1.14,1.1,1.03) if value else Color.WHITE
 
 func _ready() -> void:
-	var texture := AtlasTexture.new()
-	texture.atlas = STRAW
-	texture.region = NEST_REGION
-	var factor := 110.0 / NEST_REGION.size.x
-	var art := Sprite2D.new()
-	art.texture = texture
-	art.scale = Vector2.ONE * factor
-	art.position.y = 10.0 - NEST_REGION.size.y * factor * 0.5
-	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	var cutout := ShaderMaterial.new()
-	cutout.shader = preload("res://assets/art/pixel_cutout.gdshader")
-	art.material = cutout
-	add_child(art)
-	tray = Node2D.new()
-	tray.draw.connect(_draw_stock)
-	tray.z_index = 1
-	add_child(tray)
-	# The lower straw lip is drawn again in front of the eggs for real occlusion.
-	var front := Sprite2D.new()
-	front.texture = texture
-	front.scale = art.scale
-	front.position = art.position
-	front.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	front.z_index = 2
-	var foreground := ShaderMaterial.new()
-	foreground.shader = preload("res://assets/art/nest_front.gdshader")
-	foreground.set_shader_parameter("front_start",(NEST_REGION.position.y+NEST_REGION.size.y*0.61)/STRAW.get_height())
-	front.material = foreground
-	add_child(front)
+	if theme_index == 3:
+		var basket := FarmProps.sprite(0,112,10)
+		basket.name = "VegetableBasket"
+		add_child(basket)
+		tray = Node2D.new()
+		tray.draw.connect(_draw_stock)
+		tray.z_index = 1
+		add_child(tray)
+		var front := FarmProps.sprite(0,112,10)
+		front.z_index = 2
+		var lip := ShaderMaterial.new()
+		lip.shader = preload("res://assets/art/nest_front.gdshader")
+		lip.set_shader_parameter("front_start",(FarmProps.REGIONS[0].position.y+FarmProps.REGIONS[0].size.y*0.64)/FarmProps.ATLAS.get_height())
+		front.material = lip
+		add_child(front)
+	else:
+		var texture := AtlasTexture.new()
+		texture.atlas = STRAW
+		texture.region = NEST_REGION
+		var factor := 110.0 / NEST_REGION.size.x
+		var art := Sprite2D.new()
+		art.texture = texture
+		art.scale = Vector2.ONE * factor
+		art.position.y = 10.0 - NEST_REGION.size.y * factor * 0.5
+		art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		var cutout := ShaderMaterial.new()
+		cutout.shader = preload("res://assets/art/pixel_cutout.gdshader")
+		art.material = cutout
+		add_child(art)
+		tray = Node2D.new()
+		tray.draw.connect(_draw_stock)
+		tray.z_index = 1
+		add_child(tray)
+		# The lower straw lip is drawn again in front of the eggs for real occlusion.
+		var front := Sprite2D.new()
+		front.texture = texture
+		front.scale = art.scale
+		front.position = art.position
+		front.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		front.z_index = 2
+		var foreground := ShaderMaterial.new()
+		foreground.shader = preload("res://assets/art/nest_front.gdshader")
+		foreground.set_shader_parameter("front_start",(NEST_REGION.position.y+NEST_REGION.size.y*0.61)/STRAW.get_height())
+		front.material = foreground
+		add_child(front)
 	badge = Label.new()
 	badge.position = Vector2(-28, 14)
 	badge.size = Vector2(56,20)
@@ -54,10 +72,14 @@ func _ready() -> void:
 	badge.add_theme_color_override("font_outline_color", Color("172033"))
 	badge.add_theme_constant_override("outline_size", 4)
 	add_child(badge)
+	if theme_index > 0: tray.material = ThemeSprites.item_material(theme_index)
 	refill()
 
 func refill() -> void:
 	stock = rng.randi_range(2,6)
+	if theme_index == 3:
+		plant_growth.clear()
+		for i in range(6): plant_growth.append(-i*0.06)
 	refill_left = 0.0
 	if is_instance_valid(tray): tray.queue_redraw()
 
@@ -69,12 +91,23 @@ func take() -> bool:
 	return true
 
 func _process(delta: float) -> void:
+	if theme_index == 3:
+		for i in range(plant_growth.size()): plant_growth[i] = minf(1.0,plant_growth[i]+delta/0.6)
+		tray.queue_redraw()
 	if refill_left > 0.0:
 		refill_left = maxf(0.0, refill_left - delta)
 		if refill_left == 0.0: refill()
 	badge.text = "%ds" % ceili(refill_left) if stock == 0 else ""
 
 func _draw_stock() -> void:
+	if theme_index == 3:
+		for i in range(mini(stock,6)):
+			var point := Vector2((i%3-1)*24,-35+(i/3)*16)
+			var growth := clampf(plant_growth[i] if i < plant_growth.size() else 1.0,0.0,1.0)
+			ArcadeEgg.paint_resource(tray,point+Vector2(0,7*(1.0-growth)),maxf(0.12,growth),false,theme_index)
+			if growth < 1:
+				for side in [-1,1]: tray.draw_rect(Rect2(point+Vector2(side*(5+growth*8),6-sin(growth*PI)*7),Vector2(2,2)),Color("ac7542"))
+		return
 	var back_count := stock if stock <= 3 else ceili(stock/2.0)
 	var front_count := 0 if stock <= 3 else stock-back_count
 	for row in range(2):
@@ -82,4 +115,4 @@ func _draw_stock() -> void:
 		for i in range(count):
 			var x := (float(i)-float(count-1)*0.5)*19.0
 			var y := -23.0 if stock <= 3 else (-29.0 if row == 0 else -18.0)
-			ArcadeEgg.paint(tray,Vector2(x,y),0.85,false)
+			ArcadeEgg.paint_resource(tray,Vector2(x,y),0.85,false,theme_index)

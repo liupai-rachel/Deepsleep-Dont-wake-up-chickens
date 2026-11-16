@@ -1,4 +1,5 @@
 shader_type canvas_item;
+uniform vec3 theme_tint = vec3(1.0);
 // Align the illustrated floor edges with the existing rectangular collision arena.
 void fragment() {
  vec2 uv = UV;
@@ -14,5 +15,5 @@ void fragment() {
  if (uv.x < 0.0375) { sx = uv.x / 0.0375 * edge; }
  else if (uv.x > 0.9625) { sx = mix(1.0-edge, 1.0, (uv.x-0.9625)/0.0375); }
  else { sx = mix(edge, 1.0-edge, (uv.x-0.0375)/0.925); }
- COLOR = texture(TEXTURE, vec2(sx, sy));
+ COLOR = texture(TEXTURE, vec2(sx, sy))*vec4(theme_tint,1.0);
 }

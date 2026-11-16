@@ -8,6 +8,7 @@ var searching := false
 var invulnerable := false
 var _facing := Vector2.UP
 var _toss_left := 0.0
+var _startle_left := 0.0
 
 @onready var _art: CoopCharacterArt = $Art
 @onready var _search_glow: Sprite2D = $SearchGlow
@@ -22,6 +23,7 @@ func _physics_process(delta: float) -> void:
 	_art.modulate = Color(0.72,0.94,1.0) if invulnerable else Color.WHITE
 	_search_glow.visible = searching
 	_toss_left = maxf(0.0, _toss_left - delta)
+	_startle_left = maxf(0.0,_startle_left-delta)
 	if movement_locked:
 		velocity = Vector2.ZERO
 		_art.update_pose(_facing, false, &"search" if searching else &"idle", delta)
@@ -31,8 +33,11 @@ func _physics_process(delta: float) -> void:
 		_facing = direction.normalized()
 	velocity = direction * move_speed
 	move_and_slide()
-	_art.update_pose(_facing, get_real_velocity().length_squared() > 1.0, &"toss" if _toss_left > 0.0 else &"idle", delta)
+	_art.update_pose(_facing, get_real_velocity().length_squared() > 1.0, &"startle" if _startle_left > 0.0 else (&"toss" if _toss_left > 0.0 else &"idle"), delta)
 
+
+func show_startle() -> void:
+	_startle_left = 0.42
 
 func show_feed_toss() -> void:
 	_toss_left = 0.3
